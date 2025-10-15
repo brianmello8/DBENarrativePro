@@ -67,7 +67,7 @@ Documentation: ${formData.documentation}
 Generate a complete, formal DBE narrative statement following 2025 requirements. Use professional legal language, demonstrate disadvantage by preponderance of evidence, and format with clear sections.`;
 
     const message = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+     model: "claude-sonnet-4-20250514",
       max_tokens: 8000,
       temperature: 0.7,
       messages: [{ role: "user", content: prompt }]
@@ -78,7 +78,7 @@ Generate a complete, formal DBE narrative statement following 2025 requirements.
     const coverPrompt = `Generate a professional cover letter for ${formData.ownerName} of ${formData.companyName} submitting DBE recertification to ${formData.ucpSelection}. Date: ${today}. One page, formal, regulatory-appropriate.`;
 
     const coverMsg = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
       messages: [{ role: "user", content: coverPrompt }]
     });
