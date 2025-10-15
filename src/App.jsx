@@ -113,308 +113,33 @@ const DBENarrativePro = () => {
     return ucpData;
   };
 
-  const generateDocuments = () => {
-    setIsGenerating(true);
+const generateDocuments = async () => {
+  setIsGenerating(true);
+  
+  try {
+    // Call our backend API
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ formData })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate documents');
+    }
+
+    const docs = await response.json();
     
-    setTimeout(() => {
-      const ucpInfo = getUCPAddress(formData.ucpSelection);
-      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      
-      const coverLetter = `${formData.ownerName}
-${formData.companyName}
-${formData.location}
-
-${today}
-
-${ucpInfo.name}
-${ucpInfo.address}
-${ucpInfo.city}, ${ucpInfo.state} ${ucpInfo.zip}
-
-Re: Application for DBE Recertification Under New Standards
-
-Dear Certification Officer,
-
-I am writing to submit my application for recertification as a Disadvantaged Business Enterprise (DBE) under the updated requirements effective October 2025. As mandated by the recent regulatory changes, I am providing individualized documentation of social and economic disadvantage as experienced by myself and my business, ${formData.companyName}.
-
-Enclosed with this letter, you will find:
-
-1. Narrative Statement of Social and Economic Disadvantage
-2. Supporting Documentation Checklist
-3. Financial records demonstrating economic disadvantage
-4. Evidence of barriers encountered in business operations
-
-${formData.companyName} has been operating in the ${formData.industry} industry for ${formData.yearsInBusiness} years. Throughout this period, I have faced systematic barriers that have limited my ability to compete on equal footing with non-disadvantaged businesses. The enclosed narrative provides specific, documented instances of these challenges.
-
-I understand that under the new standards, certification requires demonstrating disadvantage by a preponderance of the evidence through individualized proof. I am confident that the documentation provided establishes that I meet these criteria and that my business qualifies for DBE certification.
-
-I appreciate your consideration of this application and am available to provide any additional information or clarification you may require. Please feel free to contact me at your convenience.
-
-Thank you for your time and attention to this matter.
-
-Respectfully submitted,
-
-_______________________________
-${formData.ownerName}
-Owner, ${formData.companyName}`;
-
-      const narrative = `NARRATIVE STATEMENT OF SOCIAL AND ECONOMIC DISADVANTAGE
-
-Submitted by: ${formData.ownerName}
-Business: ${formData.companyName}
-Date: ${today}
-
-To: ${ucpInfo.name}
-
-I, ${formData.ownerName}, hereby submit this narrative statement demonstrating social and economic disadvantage as required for Disadvantaged Business Enterprise (DBE) certification under 49 CFR Part 26, as amended effective October 2025.
-
-════════════════════════════════════════════════════════════════
-
-I. BUSINESS OVERVIEW
-
-${formData.companyName} is a ${formData.industry} firm established ${formData.yearsInBusiness} years ago and headquartered in ${formData.location}. Despite possessing the technical capabilities, qualified personnel, and competitive pricing structure necessary to succeed in this industry, my business has consistently faced barriers that have prevented us from achieving market success commensurate with our qualifications.
-
-With current annual revenue of approximately $${formData.annualRevenue.toLocaleString()}, our firm operates well below the economic threshold that would indicate we have overcome the disadvantages described in this statement. This limited revenue is not a reflection of capability or work quality, but rather the direct result of systematic barriers to opportunity.
-
-════════════════════════════════════════════════════════════════
-
-II. SOCIAL DISADVANTAGE
-
-Throughout my career as a business owner in the ${formData.industry} industry, I have experienced discrimination and bias that have directly impacted my ability to secure contracts, build relationships, and grow my business. These are not isolated incidents, but rather a pattern of treatment that has created measurable barriers to success.
-
-DOCUMENTED INCIDENTS:
-${formData.socialIncidents.filter(i => i.description.trim()).map((incident, idx) => `
-Incident ${idx + 1} - ${incident.date || 'Date on file'}:
-${incident.description}
-
-Impact on Business:
-${incident.impact || 'This incident directly affected my ability to compete for and secure contracts, resulting in lost revenue and limited business growth opportunities.'}
-`).join('\n')}
-
-These experiences represent more than individual setbacks—they demonstrate a pattern of bias that has systematically limited my access to opportunities despite our firm's qualifications and competitive positioning. The cumulative effect of these barriers has been a significant constraint on business growth and market penetration.
-
-════════════════════════════════════════════════════════════════
-
-III. ECONOMIC DISADVANTAGE
-
-The social disadvantages described above have manifested in concrete, measurable economic barriers that have prevented my business from achieving financial success commensurate with our capabilities and market position.
-
-A. ACCESS TO CAPITAL AND FINANCING
-
-${formData.financingBarriers || 'I have encountered significant challenges in securing financing on terms comparable to similarly situated non-disadvantaged businesses. Financial institutions have consistently offered less favorable terms or declined applications despite strong business fundamentals, limiting my ability to scale operations and bid on larger projects.'}
-
-B. BONDING AND INSURANCE COSTS
-
-${formData.bondingChallenges || 'Obtaining adequate bonding capacity has proven more difficult and expensive than for comparable firms. The elevated bonding costs and reduced availability have directly limited the size and scope of projects I can pursue, creating a competitive disadvantage in the marketplace.'}
-
-${formData.insuranceChallenges ? `\nInsurance Barriers:\n${formData.insuranceChallenges}` : ''}
-
-C. CONTRACT ACQUISITION AND COMPETITIVE POSITIONING
-
-${formData.contractLosses || 'Despite consistently submitting competitive bids and maintaining high-quality work standards, my firm has experienced an unusual pattern of contract losses. In numerous instances, contracts have been awarded to competitors with higher bids or less relevant experience, suggesting factors beyond merit are influencing selection decisions.'}
-
-D. MARKET POSITION AND REVENUE CONSTRAINTS
-
-${formData.marketDisadvantages || 'The cumulative effect of the barriers described above has been a significant constraint on market penetration and revenue growth. Based on my firm\'s capabilities, industry experience, and technical qualifications, we should reasonably expect higher annual revenue. However, the systematic barriers to opportunity have prevented us from achieving this potential.'}
-
-With current annual revenue of approximately $${formData.annualRevenue.toLocaleString()}, my personal net worth remains well below the threshold established for DBE eligibility. This economic position is a direct result of the barriers described throughout this statement, not a reflection of business capability or market demand for our services.
-
-════════════════════════════════════════════════════════════════
-
-IV. SUPPORTING DOCUMENTATION
-
-In support of this narrative, I am providing the following documentation:
-
-${formData.documentation || `• Financial statements demonstrating economic disadvantage
-• Bid tabulations showing competitive pricing and contract losses
-• Correspondence regarding financing applications and terms offered
-• Records of bonding costs and capacity limitations
-• Evidence of market barriers and competitive disadvantages
-• Additional supporting materials as detailed in the attached checklist`}
-
-${formData.specificExamples ? `\nADDITIONAL CONTEXT:\n${formData.specificExamples}` : ''}
-
-════════════════════════════════════════════════════════════════
-
-V. CONCLUSION
-
-The disadvantages I have experienced are not matters of perception, but documented realities that have measurably impacted my business's ability to compete and succeed. The barriers described in this statement have created a cumulative effect that has limited my firm's growth, market position, and financial success despite our technical capabilities and competitive offerings.
-
-DBE certification is essential to creating a level playing field where my business can compete based on merit, capability, and value proposition rather than being constrained by the systematic barriers documented in this statement. The evidence presented demonstrates by a preponderance of the evidence that I meet the criteria for social and economic disadvantage as defined under 49 CFR Part 26.
-
-I declare under penalty of perjury under the laws of the United States that the foregoing is true and correct to the best of my knowledge and belief.
-
-Executed on ${today}
-
-
-_________________________________
-${formData.ownerName}
-Owner, ${formData.companyName}`;
-
-      const checklist = `SUPPORTING DOCUMENTATION CHECKLIST
-${formData.companyName} - DBE Recertification Application
-
-Applicant: ${formData.ownerName}
-Submission Date: ${today}
-UCP: ${ucpInfo.name}
-
-════════════════════════════════════════════════════════════════
-
-REQUIRED DOCUMENTS - Please ensure all items are included:
-
-☐ IDENTITY AND OWNERSHIP DOCUMENTATION
-   • Personal identification (driver's license, passport)
-   • Proof of business ownership (articles of incorporation, operating agreement)
-   • Personal financial statement
-   • Three years of personal tax returns
-
-☐ BUSINESS FINANCIAL RECORDS
-   • Three years of business tax returns
-   • Current profit & loss statement
-   • Current balance sheet
-   • Business bank statements (last 12 months)
-   • Evidence of revenue stated: $${formData.annualRevenue.toLocaleString()}
-
-☐ SOCIAL DISADVANTAGE EVIDENCE
-   • Documentation of incidents described in narrative
-   • Correspondence, emails, or records supporting claims
-   • Witness statements (if applicable)
-   • Project bid tabulations showing losses despite competitive pricing
-   • Any formal complaints or inquiries filed
-
-☐ ECONOMIC DISADVANTAGE DOCUMENTATION
-   • Loan applications and denial letters
-   • Correspondence regarding financing terms offered
-   • Bonding cost documentation and capacity limitations
-   • Insurance quotes showing premium disparities
-   • Comparative market analysis (if available)
-   • Evidence of contract losses to higher bidders
-
-☐ BUSINESS CAPABILITY EVIDENCE
-   • List of completed projects (last 3 years)
-   • Client references and testimonials
-   • Professional licenses and certifications
-   • Equipment lists and ownership documentation
-   • Personnel qualifications and resumes
-   • Bonding capacity letters
-
-☐ ADDITIONAL SUPPORTING MATERIALS
-   • Organizational chart
-   • Business plan or strategic overview
-   • Marketing materials and capability statements
-   • Any additional evidence supporting disadvantage claims
-
-════════════════════════════════════════════════════════════════
-
-SUBMISSION INSTRUCTIONS:
-
-1. Review all documents for completeness and accuracy
-2. Organize materials in the order listed above
-3. Include this checklist as a cover sheet for your documentation package
-4. Submit complete package to:
-
-   ${ucpInfo.name}
-   ${ucpInfo.address}
-   ${ucpInfo.city}, ${ucpInfo.state} ${ucpInfo.zip}
-
-5. Retain copies of all submitted materials for your records
-6. Follow up within 10 business days to confirm receipt
-
-════════════════════════════════════════════════════════════════
-
-IMPORTANT NOTES:
-
-• All documentation must be current (within last 90 days where applicable)
-• Personal net worth calculations must exclude primary residence and retirement accounts
-• Evidence must demonstrate disadvantage by preponderance of the evidence
-• Incomplete applications may result in delays or denial
-• Contact your UCP certifier with questions before submission
-
-For questions or assistance, contact:
-${ucpInfo.name}
-[Contact information available through UCP website]
-
-════════════════════════════════════════════════════════════════
-
-Document prepared by: DBE Narrative Pro
-Preparation Date: ${today}`;
-
-      const reviewSummary = `APPLICATION REVIEW SUMMARY
-Final Check Before Submission
-
-Application for: ${formData.companyName}
-Prepared by: DBE Narrative Pro
-Date: ${today}
-
-════════════════════════════════════════════════════════════════
-
-APPLICANT INFORMATION:
-✓ Business Name: ${formData.companyName}
-✓ Owner Name: ${formData.ownerName}
-✓ Industry: ${formData.industry}
-✓ Years in Business: ${formData.yearsInBusiness}
-✓ Annual Revenue: $${formData.annualRevenue.toLocaleString()}
-✓ Location: ${formData.location}
-
-SUBMISSION TARGET:
-✓ UCP: ${ucpInfo.name}
-✓ Address: ${ucpInfo.address}, ${ucpInfo.city}, ${ucpInfo.state} ${ucpInfo.zip}
-
-NARRATIVE COMPONENTS INCLUDED:
-✓ Business Overview
-✓ Social Disadvantage Section (${formData.socialIncidents.filter(i => i.description).length} incidents documented)
-✓ Economic Disadvantage Section (Complete)
-✓ Supporting Documentation References
-✓ Declaration Under Penalty of Perjury
-
-DOCUMENT PACKAGE COMPLETE:
-✓ Cover Letter
-✓ Narrative Statement (${narrative.split('\n').length} lines)
-✓ Evidence Checklist
-✓ Review Summary (this document)
-
-════════════════════════════════════════════════════════════════
-
-FINAL CHECKLIST BEFORE SUBMISSION:
-
-☐ Review all narrative content for accuracy
-☐ Verify all dates and dollar amounts
-☐ Ensure all incidents include specific details
-☐ Confirm UCP information is correct
-☐ Gather all supporting documentation per checklist
-☐ Sign and date all required documents
-☐ Make copies of entire submission package
-☐ Prepare submission envelope/package
-☐ Submit via certified mail or as directed by UCP
-☐ Calendar follow-up date (10 business days)
-
-════════════════════════════════════════════════════════════════
-
-NEXT STEPS:
-
-1. Download all four documents from this package
-2. Review each document carefully for accuracy
-3. Make any necessary edits in Microsoft Word
-4. Gather all supporting documentation
-5. Sign and date required documents
-6. Submit complete package to UCP
-7. Confirm receipt and timeline
-
-════════════════════════════════════════════════════════════════
-
-Questions about this application package?
-This document package was generated by DBE Narrative Pro`;
-
-      setGeneratedDocs({
-        coverLetter,
-        narrative,
-        checklist,
-        reviewSummary,
-        preview: narrative.substring(0, 1500) + '\n\n[... Preview shows first portion of narrative. Unlock full document package to access complete content ...]'
-      });
-      
-      setIsGenerating(false);
-    }, 3000);
-  };
+    setGeneratedDocs(docs);
+    setIsGenerating(false);
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error generating documents. Please try again.');
+    setIsGenerating(false);
+  }
+};
 
   const downloadDocument = (content, filename) => {
     const blob = new Blob([content], { type: 'text/plain' });
