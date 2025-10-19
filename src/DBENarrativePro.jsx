@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, Download, FileText, AlertCircle, CheckCircle, Building2, DollarSign, Users, Shield, Lock, Eye } from 'lucide-react';
 
-const DBENarrativePro = () => {
+const DBENarrativePro = ({ redirectLicenseKey }) => {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({
     companyName: '',
@@ -25,6 +25,46 @@ const DBENarrativePro = () => {
   const [generatedDocs, setGeneratedDocs] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [licenseKey, setLicenseKey] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [licenseError, setLicenseError] = useState('');
+  const [showLicenseInput, setShowLicenseInput] = useState(false);
+
+  // Handle auto-verification when redirected from Gumroad
+  useEffect(() => {
+    // Check if already verified (localStorage cache)
+    const checkStoredLicense = () => {
+      try {
+        const storedLicense = localStorage.getItem('dbe_license_verified');
+        if (storedLicense) {
+          const licenseData = JSON.parse(storedLicense);
+          // Check if verification is less than 24 hours old
+          const hoursSinceVerification = (Date.now() - licenseData.timestamp) / (1000 * 60 * 60);
+          if (hoursSinceVerification < 24) {
+            setIsPaid(true);
+            setLicenseKey(licenseData.key);
+            return true;
+          } else {
+            // Clear expired license
+            localStorage.removeItem('dbe_license_verified');
+          }
+        }
+      } catch (error) {
+        console.error('Error reading stored license:', error);
+      }
+      return false;
+    };
+
+    // First check if we have a cached valid license
+    const hasValidCache = checkStoredLicense();
+
+    // If redirected from Gumroad with new license key, verify it
+    if (redirectLicenseKey && !hasValidCache) {
+      setLicenseKey(redirectLicenseKey);
+      setShowLicenseInput(true); // Show the verification UI
+      verifyLicense(redirectLicenseKey); // Auto-verify the license
+    }
+  }, [redirectLicenseKey]);
 
   const ucpList = [
     "California Unified Certification Program (CUCP)",
@@ -102,66 +142,515 @@ const DBENarrativePro = () => {
     }
   };
 
-  const getUCPAddress = (ucpName) => {
-    const ucpData = {
-      name: ucpName === 'Other/Custom UCP' ? formData.customUCP : ucpName,
-      address: "123 Main Street",
-      city: "Sacramento",
-      state: "CA",
-      zip: "95814"
+  // Convert text to RTF format (Word-compatible)
+  const textToRTF = (title, content) => {
+    const escapeRTF = (text) => {
+      return text
+        .replace(/\\/g, '\\\\')
+        .replace(/\{/g, '\\{')
+        .replace(/\}/g, '\\}')
+        .replace(/\n/g, '\\par\n');
     };
-    return ucpData;
+
+    const rtfContent = escapeRTF(content);
+    const rtfTitle = escapeRTF(title);
+
+    return `{\\rtf1\\ansi\\deff0
+{\\fonttbl{\\f0\\fnil\\fcharset0 Calibri;}{\\f1\\fnil\\fcharset0 Arial;}}
+{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;}
+\\viewkind4\\uc1\\pard\\sa200\\sl276\\slmult1\\f0\\fs22
+
+{\\pard\\qc\\b\\fs32 ${rtfTitle}\\par}
+\\par
+${rtfContent}
+}`;
   };
 
-const generateDocuments = async () => {
-  setIsGenerating(true);
-  
-  try {
-    // Call our backend API
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ formData })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to generate documents');
-    }
-
-    const docs = await response.json();
+  const generateDocuments = async () => {
+    setIsGenerating(true);
     
-    setGeneratedDocs(docs);
-    setIsGenerating(false);
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Error generating documents. Please try again.');
-    setIsGenerating(false);
-  }
-};
+    setTimeout(() => {
+      const ucpName = formData.ucpSelection === 'Other/Custom UCP' ? formData.customUCP : formData.ucpSelection;
+      
+      // Generate Cover Letter
+      const coverLetter = `${formData.ownerName}
+${formData.companyName}
+${formData.location}
 
-  const downloadDocument = (content, filename) => {
-    const blob = new Blob([content], { type: 'text/plain' });
+${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+
+${ucpName}
+Disadvantaged Business Enterprise (DBE) Program
+
+RE: DBE Recertification Application - ${formData.companyName}
+
+Dear Certification Officer,
+
+I am writing to submit my application for recertification as a Disadvantaged Business Enterprise (DBE) under 49 CFR Part 26, as amended. ${formData.companyName} has been operating in the ${formData.industry} industry for ${formData.yearsInBusiness} years and maintains an annual revenue of approximately $${Number(formData.annualRevenue).toLocaleString()}.
+
+As required under the new regulatory framework effective October 2025, I am providing individualized evidence of both social and economic disadvantage. The enclosed narrative statement details specific incidents of discrimination and economic barriers that have materially impacted my business operations and growth potential.
+
+This application includes:
+
+1. Detailed narrative statement of social and economic disadvantage
+2. Supporting documentation as outlined in the attached checklist
+3. Current financial statements and business records
+4. Evidence of continuing disadvantage
+
+I have experienced persistent barriers in accessing capital, securing bonding, and competing for contracts on equal terms. These disadvantages stem from systemic bias and have resulted in measurable economic harm to my business, as detailed in the narrative statement.
+
+I am committed to maintaining compliance with all DBE program requirements and appreciate your consideration of this application. Please contact me at your earliest convenience if you require any additional information or documentation.
+
+Thank you for your time and attention to this matter.
+
+Respectfully submitted,
+
+${formData.ownerName}
+Owner, ${formData.companyName}`;
+
+      // Generate Narrative Statement
+      const narrative = `DBE NARRATIVE STATEMENT
+${formData.companyName}
+Prepared for: ${ucpName}
+
+═══════════════════════════════════════════════════════════════
+
+I. INTRODUCTION AND BUSINESS BACKGROUND
+
+I, ${formData.ownerName}, am the owner and principal of ${formData.companyName}, a ${formData.industry} business located at ${formData.location}. My company has been in operation for ${formData.yearsInBusiness} years with current annual revenues of approximately $${Number(formData.annualRevenue).toLocaleString()}.
+
+This narrative provides individualized evidence of social and economic disadvantage as required under 49 CFR Part 26, as amended effective October 2025. The following sections document specific incidents of discrimination, economic barriers, and the measurable impact these disadvantages have had on my business operations and growth.
+
+═══════════════════════════════════════════════════════════════
+
+II. SOCIAL DISADVANTAGE - SPECIFIC INCIDENTS
+
+${formData.socialIncidents.map((incident, idx) => `
+INCIDENT ${idx + 1}: ${incident.date}
+
+Description:
+${incident.description}
+
+Impact on Business:
+${incident.impact}
+
+This incident demonstrates a clear pattern of discriminatory treatment that has materially affected my ability to compete on equal terms in the marketplace.
+`).join('\n───────────────────────────────────────────────────────────\n')}
+
+═══════════════════════════════════════════════════════════════
+
+III. ECONOMIC DISADVANTAGE - DOCUMENTED BARRIERS
+
+A. ACCESS TO CAPITAL AND FINANCING
+
+${formData.financingBarriers}
+
+These financing barriers have directly constrained my business growth and limited my ability to pursue larger contracts and expand operations.
+
+B. BONDING CHALLENGES
+
+${formData.bondingChallenges || 'Bonding requirements have presented additional financial barriers, with premium rates that exceed industry averages for similarly situated businesses.'}
+
+C. INSURANCE COSTS
+
+${formData.insuranceChallenges || 'Insurance costs represent a disproportionate burden on my business operations compared to industry peers with similar risk profiles.'}
+
+D. CONTRACT LOSSES AND BID DISPARITIES
+
+${formData.contractLosses}
+
+These documented instances of bid irregularities and contract losses demonstrate systematic disadvantage in the competitive bidding process.
+
+E. MARKET POSITION AND REVENUE IMPACT
+
+${formData.marketDisadvantages}
+
+The cumulative effect of these barriers has artificially constrained my business revenue and market position below what should be expected given my technical capabilities, experience, and qualifications.
+
+═══════════════════════════════════════════════════════════════
+
+IV. ADDITIONAL SUPPORTING EVIDENCE
+
+${formData.specificExamples}
+
+═══════════════════════════════════════════════════════════════
+
+V. SUPPORTING DOCUMENTATION
+
+The following documentation is provided in support of this narrative:
+
+${formData.documentation}
+
+═══════════════════════════════════════════════════════════════
+
+VI. CONCLUSION
+
+The evidence presented in this narrative demonstrates individualized proof of both social and economic disadvantage as required under 49 CFR Part 26. I have experienced persistent discrimination and economic barriers that have materially and substantially affected my ability to compete in the marketplace on equal terms.
+
+These disadvantages are not merely theoretical but are documented through specific incidents, financial records, and comparative analysis with similarly situated businesses. The cumulative impact has resulted in measurable economic harm and continues to affect my business operations.
+
+I respectfully request certification as a Disadvantaged Business Enterprise based on this individualized showing of disadvantage.
+
+Respectfully submitted,
+
+${formData.ownerName}
+Owner, ${formData.companyName}
+${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+
+      // Generate Documentation Checklist
+      const checklist = `SUPPORTING DOCUMENTATION CHECKLIST
+${formData.companyName} - DBE Recertification Application
+
+═══════════════════════════════════════════════════════════════
+
+This checklist identifies all supporting documentation that should accompany your DBE recertification application. Check each item as you gather and organize your materials.
+
+REQUIRED BUSINESS DOCUMENTS:
+☐ Current business license and registrations
+☐ Articles of incorporation or organization
+☐ Operating agreement or bylaws
+☐ Most recent three years of business tax returns
+☐ Current year-to-date financial statements
+☐ Business bank statements (most recent 12 months)
+
+OWNERSHIP DOCUMENTATION:
+☐ Stock certificates or ownership interest documents
+☐ Proof of capital contributions
+☐ Documentation of management authority
+☐ Résumé demonstrating expertise in the industry
+
+SOCIAL DISADVANTAGE EVIDENCE:
+${formData.socialIncidents.map((incident, idx) => `
+☐ Incident ${idx + 1} (${incident.date}):
+   - Bid tabulation sheets or contract documents
+   - Email correspondence or written communications
+   - Meeting notes or memoranda
+   - Any other contemporaneous documentation
+`).join('\n')}
+
+ECONOMIC DISADVANTAGE EVIDENCE:
+☐ Loan application documents and denial letters
+☐ Bank correspondence regarding financing terms
+☐ Bonding quotes showing premium rates
+☐ Industry rate comparison data
+☐ Insurance quotes and policy documents
+☐ Bid tabulation sheets showing contract awards to higher bidders
+☐ Financial analysis comparing market position to industry peers
+☐ Documentation of revenue constraints
+
+ADDITIONAL SUPPORTING MATERIALS:
+☐ Letters of reference from clients or industry professionals
+☐ Project portfolios demonstrating capabilities
+☐ Industry certifications and licenses
+☐ Any additional evidence referenced in the narrative
+
+PERSONAL FINANCIAL STATEMENT:
+☐ Personal financial statement (most recent)
+☐ Personal tax returns (most recent three years)
+☐ Documentation of personal net worth
+
+APPLICATION FORMS:
+☐ Completed UCP application form
+☐ Personal net worth statement
+☐ Affidavit of disadvantage
+☐ Any additional forms required by ${ucpName}
+
+═══════════════════════════════════════════════════════════════
+
+ORGANIZATION TIPS:
+
+1. Create a table of contents listing all documents in order
+2. Use tabs or dividers to separate document categories
+3. Number each page sequentially
+4. Make two complete copies (one for submission, one for your records)
+5. Consider electronic submission if accepted by your UCP
+
+═══════════════════════════════════════════════════════════════
+
+SUBMISSION CHECKLIST:
+
+☐ All documents are signed where required
+☐ All documents are dated appropriately
+☐ Documents are organized in logical order
+☐ Cover letter is included
+☐ Narrative statement is included
+☐ All referenced exhibits are included
+☐ Copies are legible and complete
+☐ Application is submitted by deadline
+
+═══════════════════════════════════════════════════════════════
+
+IMPORTANT NOTES:
+
+- Keep copies of everything you submit
+- Follow up within 10 business days to confirm receipt
+- Be prepared to provide additional documentation if requested
+- Maintain organized files for future reference
+
+Prepared by: DBE Narrative Pro
+Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+
+      // Generate Review Summary
+      const reviewSummary = `PRE-SUBMISSION REVIEW SUMMARY
+${formData.companyName} - DBE Recertification Application
+
+═══════════════════════════════════════════════════════════════
+
+Use this summary to review your application before submission.
+
+APPLICATION COMPLETENESS CHECK:
+
+NARRATIVE QUALITY:
+☐ Narrative includes specific dates and incidents
+☐ Each incident describes what happened in detail
+☐ Business impact is quantified where possible
+☐ Economic barriers are documented with numbers
+☐ Comparisons to similarly situated businesses included
+☐ Language is professional and factual
+☐ No general or vague statements without support
+
+EVIDENCE STRENGTH:
+☐ At least ${formData.socialIncidents.length} social disadvantage incident(s) documented
+☐ Economic barriers include specific dollar amounts
+☐ Supporting documentation is referenced and attached
+☐ Financial records demonstrate business performance
+☐ Independent verification available where possible
+
+REGULATORY COMPLIANCE:
+☐ Application meets new 2025 individualized evidence standards
+☐ No reliance on group-based presumptions
+☐ Personal disadvantage clearly distinguished from business disadvantage
+☐ Continuing disadvantage is demonstrated
+☐ All required forms completed and signed
+
+═══════════════════════════════════════════════════════════════
+
+KEY INFORMATION SUMMARY:
+
+Business Name: ${formData.companyName}
+Owner: ${formData.ownerName}
+Industry: ${formData.industry}
+Years in Business: ${formData.yearsInBusiness}
+Annual Revenue: $${Number(formData.annualRevenue).toLocaleString()}
+Location: ${formData.location}
+Submitting to: ${ucpName}
+
+═══════════════════════════════════════════════════════════════
+
+NARRATIVE STRENGTH ASSESSMENT:
+
+Social Disadvantage Documentation:
+- Number of specific incidents: ${formData.socialIncidents.length}
+- Incidents include dates: ${formData.socialIncidents.every(i => i.date) ? 'Yes ✓' : 'Review needed'}
+- Incidents include detailed descriptions: ${formData.socialIncidents.every(i => i.description.length > 100) ? 'Yes ✓' : 'Review needed'}
+- Business impact quantified: ${formData.socialIncidents.some(i => i.impact) ? 'Yes ✓' : 'Review needed'}
+
+Economic Disadvantage Documentation:
+- Financing barriers documented: ${formData.financingBarriers ? 'Yes ✓' : 'Review needed'}
+- Contract losses documented: ${formData.contractLosses ? 'Yes ✓' : 'Review needed'}
+- Market disadvantages explained: ${formData.marketDisadvantages ? 'Yes ✓' : 'Review needed'}
+- Includes specific dollar amounts: Review your narrative
+- Includes comparative data: Review your narrative
+
+═══════════════════════════════════════════════════════════════
+
+RECOMMENDATIONS FOR STRENGTHENING YOUR APPLICATION:
+
+1. SPECIFICITY: Ensure every claim includes:
+   - Specific dates or time periods
+   - Names of institutions/individuals (where appropriate)
+   - Dollar amounts and percentages
+   - Comparison to industry norms
+
+2. DOCUMENTATION: Attach supporting evidence for:
+   - Every incident mentioned in the narrative
+   - Financial claims and comparisons
+   - Bid tabulations and contract losses
+   - Loan applications and denials
+
+3. CLARITY: Review narrative for:
+   - Clear cause-and-effect relationships
+   - Logical organization and flow
+   - Professional tone throughout
+   - No contradictions or inconsistencies
+
+4. COMPLETENESS: Verify you have:
+   - Addressed both social AND economic disadvantage
+   - Provided individualized (not group-based) evidence
+   - Demonstrated continuing disadvantage
+   - Included all required application forms
+
+═══════════════════════════════════════════════════════════════
+
+COMMON PITFALLS TO AVOID:
+
+✗ Vague or general statements without specific examples
+✗ Relying on race or gender without individualized proof
+✗ Failing to quantify economic impact
+✗ Missing supporting documentation
+✗ Incomplete application forms
+✗ Unsigned documents
+✗ Inconsistencies between narrative and documentation
+
+═══════════════════════════════════════════════════════════════
+
+FINAL SUBMISSION CHECKLIST:
+
+☐ Read entire application one final time
+☐ Have someone else review for clarity and completeness
+☐ Verify all cross-references are accurate
+☐ Confirm all exhibits are attached and labeled
+☐ Make complete copies for your records
+☐ Submit by deadline via required method
+☐ Follow up to confirm receipt
+
+═══════════════════════════════════════════════════════════════
+
+AFTER SUBMISSION:
+
+1. Confirm receipt within 10 business days
+2. Respond promptly to any requests for additional information
+3. Keep organized files of all correspondence
+4. Note any deadlines for supplemental materials
+5. Maintain records for future recertification
+
+═══════════════════════════════════════════════════════════════
+
+Good luck with your DBE recertification!
+
+This review summary was generated by DBE Narrative Pro
+${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+
+      const mockDocs = {
+        preview: `DBE NARRATIVE STATEMENT - PREVIEW
+        
+This is a preview of your narrative statement. The complete package includes:
+
+══════════════════════════════════════════════════════
+
+COMPANY: ${formData.companyName}
+OWNER: ${formData.ownerName}
+INDUSTRY: ${formData.industry}
+YEARS IN BUSINESS: ${formData.yearsInBusiness}
+ANNUAL REVENUE: $${Number(formData.annualRevenue).toLocaleString()}
+
+══════════════════════════════════════════════════════
+
+SOCIAL DISADVANTAGE - DOCUMENTED INCIDENTS:
+${formData.socialIncidents.length} incident(s) documented with specific dates, 
+descriptions, and business impact.
+
+ECONOMIC DISADVANTAGE - DOCUMENTED BARRIERS:
+Financing challenges, contract losses, and market disadvantages 
+detailed with specific dollar amounts and comparative analysis.
+
+══════════════════════════════════════════════════════
+
+[The full narrative is approximately 4-6 pages and includes:]
+
+✓ Complete incident descriptions
+✓ Detailed economic analysis
+✓ Supporting documentation references
+✓ Professional formatting for UCP submission
+
+[Preview shows first 500 characters of full narrative:]
+
+${narrative.substring(0, 500)}...
+
+══════════════════════════════════════════════════════
+
+UNLOCK COMPLETE PACKAGE TO DOWNLOAD:
+- Full Narrative Statement (4-6 pages)
+- Professional Cover Letter
+- Documentation Checklist
+- Pre-Submission Review Summary
+
+All documents formatted for Microsoft Word editing.`,
+        narrative,
+        coverLetter,
+        checklist,
+        reviewSummary
+      };
+      
+      setGeneratedDocs(mockDocs);
+      setIsGenerating(false);
+    }, 2000);
+  };
+
+  // Download as Word-compatible RTF file
+  const downloadAsWord = (content, filename, title) => {
+    const rtfContent = textToRTF(title, content);
+    const blob = new Blob([rtfContent], { type: 'application/rtf' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename;
+    a.download = filename.replace('.txt', '.doc');
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const downloadAllDocuments = () => {
-    const companySlug = formData.companyName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-    downloadDocument(generatedDocs.coverLetter, `${companySlug}_Cover_Letter.txt`);
-    downloadDocument(generatedDocs.narrative, `${companySlug}_DBE_Narrative.txt`);
-    downloadDocument(generatedDocs.checklist, `${companySlug}_Documentation_Checklist.txt`);
-    downloadDocument(generatedDocs.reviewSummary, `${companySlug}_Review_Summary.txt`);
+    const companySlug = formData.companyName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'DBE_Application';
+    
+    downloadAsWord(generatedDocs.coverLetter, `${companySlug}_Cover_Letter.doc`, 'DBE Recertification Cover Letter');
+    downloadAsWord(generatedDocs.narrative, `${companySlug}_DBE_Narrative.doc`, 'DBE Narrative Statement');
+    downloadAsWord(generatedDocs.checklist, `${companySlug}_Documentation_Checklist.doc`, 'Supporting Documentation Checklist');
+    downloadAsWord(generatedDocs.reviewSummary, `${companySlug}_Review_Summary.doc`, 'Application Review Summary');
+    
+    alert('All documents downloaded successfully! Open with Microsoft Word to edit.');
   };
 
   const handlePayment = () => {
-    alert('In production: Redirects to Gumroad payment ($149)\n\nFor demo purposes, unlocking documents now...');
-    setIsPaid(true);
+    // Get current URL for redirect
+    const currentUrl = window.location.origin + window.location.pathname;
+    // Build Gumroad URL with redirect parameter
+    const gumroadUrl = `https://narrativepro.gumroad.com/l/zlixb?wanted=true&redirect_url=${encodeURIComponent(currentUrl)}?license_key={license_key}`;
+    
+    window.open(gumroadUrl, '_blank');
+    setShowLicenseInput(true);
+  };
+
+  const verifyLicense = async (keyToVerify = licenseKey) => {
+    setVerifying(true);
+    setLicenseError('');
+    
+    try {
+      const response = await fetch('/api/verify-license', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          licenseKey: keyToVerify 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.valid) {
+        // Store verification in localStorage with 24-hour expiration
+        try {
+          localStorage.setItem('dbe_license_verified', JSON.stringify({
+            key: keyToVerify,
+            timestamp: Date.now(),
+            email: data.purchaseInfo?.email
+          }));
+        } catch (error) {
+          console.error('Error storing license:', error);
+        }
+        
+        setIsPaid(true);
+        setLicenseKey(keyToVerify);
+        alert('License verified successfully! Your documents are now unlocked.');
+      } else {
+        setLicenseError(data.error || 'Invalid license key. Please check your email from Gumroad and try again.');
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      setLicenseError('Unable to verify license. Please check your internet connection and try again.');
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const steps = [
@@ -238,7 +727,7 @@ const generateDocuments = async () => {
               </div>
               <div className="flex items-start gap-3">
                 <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">4</div>
-                <p className="text-sm text-gray-700">Download and submit to your UCP with confidence</p>
+                <p className="text-sm text-gray-700">Download Word documents and submit to your UCP with confidence</p>
               </div>
             </div>
           </div>
@@ -304,7 +793,7 @@ const generateDocuments = async () => {
               <input
                 type="text"
                 className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
-                placeholder="1,250,000"
+                placeholder="1250000"
                 value={formData.annualRevenue}
                 onChange={(e) => updateFormData('annualRevenue', e.target.value)}
               />
@@ -414,7 +903,7 @@ const generateDocuments = async () => {
                   <textarea
                     className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
                     rows={5}
-                    placeholder="Example: In March 2023, I submitted the lowest qualified bid ($487,000) for State Highway Project SR-125. Despite being properly bonded and meeting all technical requirements, the contract was awarded to a firm with a bid $52,000 higher. When I requested feedback, the contracting officer stated my firm 'didn't have the right relationships' despite our 8-year track record and superior qualifications..."
+                    placeholder="Example: In March 2023, I submitted the lowest qualified bid ($487,000) for State Highway Project SR-125. Despite being properly bonded and meeting all technical requirements, the contract was awarded to a firm with a bid $52,000 higher..."
                     value={incident.description}
                     onChange={(e) => updateIncident(index, 'description', e.target.value)}
                   />
@@ -427,7 +916,7 @@ const generateDocuments = async () => {
                   <textarea
                     className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
                     rows={3}
-                    placeholder="Example: This loss of a $487,000 contract directly cost my business approximately $73,000 in potential profit. More significantly, it prevented us from establishing a relationship with the state DOT and limited our ability to bid on future projects with confidence..."
+                    placeholder="Example: This loss of a $487,000 contract directly cost my business approximately $73,000 in potential profit..."
                     value={incident.impact}
                     onChange={(e) => updateIncident(index, 'impact', e.target.value)}
                   />
@@ -443,14 +932,6 @@ const generateDocuments = async () => {
             <CheckCircle size={20} />
             Add Another Incident
           </button>
-
-          <div className="bg-gray-50 border border-gray-300 p-4 rounded-lg">
-            <p className="text-xs text-gray-700">
-              <strong>Documentation Tips:</strong> Save copies of bid tabulations, email correspondence, meeting notes, 
-              or any other evidence that supports these incidents. You'll need to attach this documentation to your 
-              application per the checklist we'll provide.
-            </p>
-          </div>
         </div>
       )
     },
@@ -464,8 +945,7 @@ const generateDocuments = async () => {
             <h4 className="font-bold text-blue-900 mb-2">Economic Disadvantage Requirements</h4>
             <p className="text-sm text-blue-900">
               Describe the <strong>economic barriers</strong> you've faced. Focus on measurable impacts: 
-              higher costs, denied financing, lost contracts, or limited growth. Compare your experience 
-              to similarly situated businesses where possible.
+              higher costs, denied financing, lost contracts, or limited growth.
             </p>
           </div>
 
@@ -476,11 +956,10 @@ const generateDocuments = async () => {
             <textarea
               className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
               rows={5}
-              placeholder="Example: In 2024, I applied for a $500,000 line of credit at three regional banks. Despite maintaining 18 consecutive months of positive cash flow and presenting three years of audited financials showing consistent profitability, I was offered interest rates ranging from 12-14%. Industry colleagues with comparable financials reported securing similar financing at 7-9% rates..."
+              placeholder="Example: In 2024, I applied for a $500,000 line of credit at three regional banks. Despite maintaining 18 consecutive months of positive cash flow, I was offered interest rates ranging from 12-14%. Industry colleagues with comparable financials reported securing similar financing at 7-9% rates..."
               value={formData.financingBarriers}
               onChange={(e) => updateFormData('financingBarriers', e.target.value)}
             />
-            <p className="text-xs text-gray-500 mt-1">Include specific institutions, dates, amounts, and rates offered vs. market rates</p>
           </div>
 
           <div>
@@ -490,7 +969,7 @@ const generateDocuments = async () => {
             <textarea
               className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
               rows={4}
-              placeholder="Example: To secure bonding for projects exceeding $1M, I pay premium rates 30-40% above industry averages. My bonding agent confirmed that similarly sized firms in my market with comparable project histories pay significantly less..."
+              placeholder="Example: To secure bonding for projects exceeding $1M, I pay premium rates 30-40% above industry averages..."
               value={formData.bondingChallenges}
               onChange={(e) => updateFormData('bondingChallenges', e.target.value)}
             />
@@ -503,7 +982,7 @@ const generateDocuments = async () => {
             <textarea
               className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
               rows={4}
-              placeholder="Example: Commercial general liability insurance for my operations costs approximately $18,000 annually. Competitors in my market with similar revenue and claims history report annual premiums of $11,000-13,000..."
+              placeholder="Example: Commercial general liability insurance for my operations costs approximately $18,000 annually. Competitors in my market with similar revenue report annual premiums of $11,000-13,000..."
               value={formData.insuranceChallenges}
               onChange={(e) => updateFormData('insuranceChallenges', e.target.value)}
             />
@@ -516,11 +995,10 @@ const generateDocuments = async () => {
             <textarea
               className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
               rows={5}
-              placeholder="Example: Over the past 24 months, I have submitted 47 competitive bids on federally-funded transportation projects. Despite being the low bidder on 12 occasions, I was awarded only 2 contracts. In 8 documented instances, contracts were awarded to bidders with prices 8-15% higher than mine..."
+              placeholder="Example: Over the past 24 months, I have submitted 47 competitive bids on federally-funded transportation projects. Despite being the low bidder on 12 occasions, I was awarded only 2 contracts..."
               value={formData.contractLosses}
               onChange={(e) => updateFormData('contractLosses', e.target.value)}
             />
-            <p className="text-xs text-gray-500 mt-1">Include number of bids, win rate, and specific examples of losses to higher bidders</p>
           </div>
 
           <div>
@@ -530,17 +1008,10 @@ const generateDocuments = async () => {
             <textarea
               className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
               rows={5}
-              placeholder="Example: Based on my firm's technical capabilities, equipment inventory, qualified personnel, and 8 years of industry experience, we should reasonably expect annual revenue in the $3-4M range. However, due to the systematic barriers described above, our revenue has been constrained to approximately $1.2M annually..."
+              placeholder="Example: Based on my firm's technical capabilities, equipment inventory, and 8 years of experience, we should reasonably expect annual revenue in the $3-4M range. However, due to systematic barriers, our revenue has been constrained to approximately $1.2M annually..."
               value={formData.marketDisadvantages}
               onChange={(e) => updateFormData('marketDisadvantages', e.target.value)}
             />
-          </div>
-
-          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg">
-            <p className="text-sm text-amber-900">
-              <strong>Pro Tip:</strong> Quantify everything possible. Numbers and percentages strengthen your case. 
-              "30% higher costs" is more compelling than "significantly higher costs."
-            </p>
           </div>
         </div>
       )
@@ -565,7 +1036,7 @@ const generateDocuments = async () => {
             <textarea
               className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
               rows={5}
-              placeholder="Include any additional information that supports your disadvantage claim: industry-specific challenges, regional market conditions, relationships with prime contractors, subcontracting opportunities, or other relevant context..."
+              placeholder="Include any additional information that supports your disadvantage claim: industry-specific challenges, regional market conditions, relationships with prime contractors..."
               value={formData.specificExamples}
               onChange={(e) => updateFormData('specificExamples', e.target.value)}
             />
@@ -578,7 +1049,7 @@ const generateDocuments = async () => {
             <textarea
               className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
               rows={5}
-              placeholder="List the evidence you can provide: loan denial letters, bid tabulations, financial statements, bonding quotes, correspondence with contracting officers, industry rate comparisons, etc..."
+              placeholder="List the evidence you can provide: loan denial letters, bid tabulations, financial statements, bonding quotes, correspondence with contracting officers..."
               value={formData.documentation}
               onChange={(e) => updateFormData('documentation', e.target.value)}
             />
@@ -592,14 +1063,8 @@ const generateDocuments = async () => {
               <p>✓ Plus a formal cover letter addressed to your UCP</p>
               <p>✓ Plus a comprehensive evidence checklist</p>
               <p>✓ Plus a review summary to check before submitting</p>
+              <p>✓ All documents downloadable as Word files for editing</p>
             </div>
-          </div>
-
-          <div className="bg-gray-50 border border-gray-300 p-4 rounded-lg">
-            <p className="text-xs text-gray-700">
-              <strong>Privacy Note:</strong> Your information is processed securely and is never stored on our servers. 
-              All documents are generated locally in your browser and downloaded directly to your device.
-            </p>
           </div>
         </div>
       )
@@ -625,6 +1090,7 @@ const generateDocuments = async () => {
                     <li>✓ Complete narrative statement of disadvantage</li>
                     <li>✓ Supporting documentation checklist</li>
                     <li>✓ Pre-submission review summary</li>
+                    <li>✓ All as Word documents for easy editing</li>
                   </ul>
                 </div>
               </div>
@@ -690,7 +1156,7 @@ const generateDocuments = async () => {
                     <h4 className="font-bold text-2xl mb-2">Unlock Complete Package</h4>
                     <p className="text-amber-50 mb-4">
                       This preview shows just a portion of your narrative. The complete package includes 4 professional 
-                      documents totaling 8-12 pages, formatted and ready for submission.
+                      documents totaling 8-12 pages, formatted as Word files ready for editing.
                     </p>
                     <div className="bg-white/20 backdrop-blur p-4 rounded-lg mb-4">
                       <p className="font-bold mb-2">Complete Package Includes:</p>
@@ -699,22 +1165,84 @@ const generateDocuments = async () => {
                         <li>✓ Professional cover letter</li>
                         <li>✓ Complete documentation checklist</li>
                         <li>✓ Pre-submission review summary</li>
-                        <li>✓ Multiple download formats (Word, PDF, Text)</li>
+                        <li>✓ Downloadable Word documents (.doc)</li>
+                        <li>✓ Fully editable in Microsoft Word</li>
                         <li>✓ Instant download - no waiting</li>
                       </ul>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <p className="text-3xl font-bold">$149</p>
-                        <p className="text-sm text-amber-100">One-time payment • Instant access</p>
+
+                    {!showLicenseInput && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <p className="text-3xl font-bold">$149</p>
+                            <p className="text-sm text-amber-100">One-time payment • Instant access</p>
+                          </div>
+                          <button
+                            onClick={handlePayment}
+                            className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105"
+                          >
+                            Pay for Download →
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={handlePayment}
-                        className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105"
-                      >
-                        Unlock Now →
-                      </button>
-                    </div>
+                    )}
+
+                    {showLicenseInput && (
+                      <div className="bg-white/10 backdrop-blur rounded-lg p-6 space-y-4">
+                        <div>
+                          <label className="block text-white font-semibold mb-2">
+                            {verifying ? '🔄 Verifying your license...' : '✓ Payment Complete? Enter Your License Key:'}
+                          </label>
+                          <p className="text-amber-100 text-sm mb-3">
+                            {verifying 
+                              ? 'Please wait while we verify your purchase with Gumroad...'
+                              : 'Check your email from Gumroad for your license key'
+                            }
+                          </p>
+                          <input
+                            type="text"
+                            placeholder="XXXX-XXXX-XXXX-XXXX"
+                            value={licenseKey}
+                            onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
+                            className="w-full p-3 rounded-lg text-gray-900 font-mono text-center text-lg mb-2"
+                            maxLength={50}
+                            disabled={verifying}
+                          />
+                          {licenseError && (
+                            <div className="bg-red-500/20 border border-red-300 rounded-lg p-3 mb-2">
+                              <p className="text-white text-sm">{licenseError}</p>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => verifyLicense()}
+                            disabled={!licenseKey.trim() || verifying}
+                            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2"
+                          >
+                            {verifying ? (
+                              <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                Verifying License...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle size={20} />
+                                Verify & Unlock Documents
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        
+                        {!verifying && (
+                          <button
+                            onClick={() => setShowLicenseInput(false)}
+                            className="w-full text-white/80 hover:text-white text-sm underline"
+                          >
+                            ← Back to purchase
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -727,7 +1255,7 @@ const generateDocuments = async () => {
                 </div>
                 <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
                   <p className="text-sm text-green-900">
-                    <strong>✓ Included:</strong> Unlimited regenerations if you need to make changes
+                    <strong>✓ Included:</strong> Full editing capability in Microsoft Word
                   </p>
                 </div>
               </div>
@@ -740,7 +1268,7 @@ const generateDocuments = async () => {
                   <div>
                     <h3 className="text-2xl font-bold mb-2">Payment Successful!</h3>
                     <p className="text-green-50">
-                      Your complete DBE application package is ready for download.
+                      Your complete DBE application package is ready for download as Word documents.
                     </p>
                   </div>
                 </div>
@@ -750,13 +1278,17 @@ const generateDocuments = async () => {
                 <div className="bg-white border-2 border-green-200 p-6 rounded-lg">
                   <FileText className="text-green-600 mb-3" size={32} />
                   <h4 className="font-bold mb-2">Narrative Statement</h4>
-                  <p className="text-sm text-gray-600 mb-4">Complete statement of disadvantage</p>
+                  <p className="text-sm text-gray-600 mb-4">Complete statement of disadvantage (4-6 pages)</p>
                   <button
-                    onClick={() => downloadDocument(generatedDocs.narrative, `${formData.companyName.replace(/\s+/g, '_')}_DBE_Narrative.txt`)}
+                    onClick={() => downloadAsWord(
+                      generatedDocs.narrative, 
+                      `${formData.companyName.replace(/\s+/g, '_')}_DBE_Narrative.doc`,
+                      'DBE Narrative Statement'
+                    )}
                     className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
                   >
                     <Download size={16} />
-                    Download
+                    Download Word Doc
                   </button>
                 </div>
 
@@ -765,11 +1297,15 @@ const generateDocuments = async () => {
                   <h4 className="font-bold mb-2">Cover Letter</h4>
                   <p className="text-sm text-gray-600 mb-4">Formal letter to your UCP</p>
                   <button
-                    onClick={() => downloadDocument(generatedDocs.coverLetter, `${formData.companyName.replace(/\s+/g, '_')}_Cover_Letter.txt`)}
+                    onClick={() => downloadAsWord(
+                      generatedDocs.coverLetter, 
+                      `${formData.companyName.replace(/\s+/g, '_')}_Cover_Letter.doc`,
+                      'DBE Recertification Cover Letter'
+                    )}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
                   >
                     <Download size={16} />
-                    Download
+                    Download Word Doc
                   </button>
                 </div>
 
@@ -778,11 +1314,15 @@ const generateDocuments = async () => {
                   <h4 className="font-bold mb-2">Documentation Checklist</h4>
                   <p className="text-sm text-gray-600 mb-4">Complete evidence checklist</p>
                   <button
-                    onClick={() => downloadDocument(generatedDocs.checklist, `${formData.companyName.replace(/\s+/g, '_')}_Checklist.txt`)}
+                    onClick={() => downloadAsWord(
+                      generatedDocs.checklist, 
+                      `${formData.companyName.replace(/\s+/g, '_')}_Checklist.doc`,
+                      'Supporting Documentation Checklist'
+                    )}
                     className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
                   >
                     <Download size={16} />
-                    Download
+                    Download Word Doc
                   </button>
                 </div>
 
@@ -791,28 +1331,32 @@ const generateDocuments = async () => {
                   <h4 className="font-bold mb-2">Review Summary</h4>
                   <p className="text-sm text-gray-600 mb-4">Pre-submission checklist</p>
                   <button
-                    onClick={() => downloadDocument(generatedDocs.reviewSummary, `${formData.companyName.replace(/\s+/g, '_')}_Review.txt`)}
+                    onClick={() => downloadAsWord(
+                      generatedDocs.reviewSummary, 
+                      `${formData.companyName.replace(/\s+/g, '_')}_Review.doc`,
+                      'Application Review Summary'
+                    )}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
                   >
                     <Download size={16} />
-                    Download
+                    Download Word Doc
                   </button>
                 </div>
               </div>
 
               <button
                 onClick={downloadAllDocuments}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 shadow-lg"
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105"
               >
                 <Download size={24} />
-                Download All Documents
+                Download All Word Documents
               </button>
 
               <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg">
                 <h4 className="font-bold text-blue-900 mb-3">Next Steps:</h4>
                 <ol className="text-sm text-blue-900 space-y-2">
-                  <li>1. Review all four documents carefully for accuracy</li>
-                  <li>2. Edit in Microsoft Word if needed (customize for your specific situation)</li>
+                  <li>1. Open each Word document and review for accuracy</li>
+                  <li>2. Edit and customize in Microsoft Word as needed</li>
                   <li>3. Gather all supporting documentation per the checklist</li>
                   <li>4. Sign and date the narrative statement</li>
                   <li>5. Submit complete package to your UCP</li>
@@ -946,8 +1490,8 @@ const generateDocuments = async () => {
           </div>
           <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
             <FileText className="text-amber-600 mx-auto mb-2" size={24} />
-            <p className="text-xs font-semibold text-gray-700">Professional Output</p>
-            <p className="text-xs text-gray-500">Ready to submit</p>
+            <p className="text-xs font-semibold text-gray-700">Word Documents</p>
+            <p className="text-xs text-gray-500">Fully editable</p>
           </div>
         </div>
 
