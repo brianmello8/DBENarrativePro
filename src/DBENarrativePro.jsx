@@ -25,9 +25,8 @@ const DBENarrativePro = () => {
   const [generatedDocs, setGeneratedDocs] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
   
-  // NEW: Validation and error states
+  // Validation and error states
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
   const [generationProgress, setGenerationProgress] = useState('');
@@ -37,15 +36,128 @@ const DBENarrativePro = () => {
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
   const LEMON_SQUEEZY_VARIANT_ID = "1052337";
+  const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4; // TODO: Replace with your GA4 Measurement ID"
   // ============================================
 
-  // NEW: Auto-save draft to localStorage
+  // ==========================================
+  // GOOGLE ANALYTICS 4 HELPER FUNCTIONS
+  // ==========================================
+  
+  // Initialize GA4
+  useEffect(() => {
+    // Load GA4 script
+    const script1 = document.createElement('script');
+    script1.async = true;
+    script1.src = `https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`;
+    document.head.appendChild(script1);
+
+    // Initialize gtag
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){window.dataLayer.push(arguments);}
+    window.gtag = gtag;
+    gtag('js', new Date());
+    gtag('config', GA4_MEASUREMENT_ID, {
+      page_title: 'DBE Narrative Pro',
+      page_location: window.location.href
+    });
+
+    console.log('✅ Google Analytics 4 initialized');
+
+    return () => {
+      if (script1.parentNode) {
+        script1.parentNode.removeChild(script1);
+      }
+    };
+  }, []);
+
+  // GA4 Event Tracking Helper
+  const trackEvent = (eventName, eventParams = {}) => {
+    if (window.gtag) {
+      window.gtag('event', eventName, eventParams);
+      console.log('📊 GA4 Event:', eventName, eventParams);
+    }
+  };
+
+  // Track Step Navigation
+  const trackStepChange = (newStep, stepName) => {
+    trackEvent('step_view', {
+      step_number: newStep + 1,
+      step_name: stepName,
+      total_steps: steps.length
+    });
+  };
+
+  // Track Form Field Completion
+  const trackFieldCompletion = (fieldName, fieldValue) => {
+    // Only track when field has meaningful content
+    if (fieldValue && fieldValue.toString().trim().length > 0) {
+      trackEvent('form_field_complete', {
+        field_name: fieldName,
+        field_length: fieldValue.toString().length,
+        step_number: step + 1
+      });
+    }
+  };
+
+  // Track Draft Operations
+  const trackDraftSave = () => {
+    trackEvent('draft_saved', {
+      step_number: step + 1,
+      fields_completed: Object.keys(formData).filter(key => 
+        formData[key] && formData[key].toString().trim().length > 0
+      ).length
+    });
+  };
+
+  const trackDraftLoad = () => {
+    trackEvent('draft_loaded', {
+      step_number: step + 1
+    });
+  };
+
+  const trackDraftCleared = () => {
+    trackEvent('draft_cleared', {
+      step_number: step + 1
+    });
+  };
+
+  // Track Payment Events
+  const trackPaymentInitiated = () => {
+    trackEvent('payment_initiated', {
+      value: 149,
+      currency: 'USD',
+      step_number: step + 1
+    });
+  };
+
+  const trackPaymentSuccess = (orderId) => {
+    trackEvent('purchase', {
+      transaction_id: orderId,
+      value: 149,
+      currency: 'USD',
+      items: [{
+        item_id: 'dbe_narrative_package',
+        item_name: 'DBE Narrative Package',
+        price: 149,
+        quantity: 1
+      }]
+    });
+  };
+
+  // ==========================================
+  // END ANALYTICS FUNCTIONS
+  // ==========================================
+
+  // Auto-save draft to localStorage with analytics
   useEffect(() => {
     const saveDraft = () => {
       try {
         localStorage.setItem('dbe_form_draft', JSON.stringify(formData));
         localStorage.setItem('dbe_form_step', step.toString());
         localStorage.setItem('dbe_form_timestamp', Date.now().toString());
+        
+        // Track draft save
+        trackDraftSave();
       } catch (error) {
         console.error('Error saving draft:', error);
       }
@@ -56,7 +168,7 @@ const DBENarrativePro = () => {
     return () => clearTimeout(timeoutId);
   }, [formData, step]);
 
-  // NEW: Load saved draft on mount
+  // Load saved draft on mount
   useEffect(() => {
     const checkForDraft = () => {
       try {
@@ -83,21 +195,23 @@ const DBENarrativePro = () => {
     checkForDraft();
   }, []);
 
-  // Load Lemon Squeezy script and handle payment events
+  // Check if user already paid (restore from localStorage)
   useEffect(() => {
-    const checkPaidStatus = () => {
-      try {
-        const paidStatus = localStorage.getItem('dbe_narrative_paid');
-        if (paidStatus === 'true') {
-          setIsPaid(true);
-        }
-      } catch (error) {
-        console.error('Error reading payment status:', error);
-      }
-    };
+    const paidStatus = localStorage.getItem('dbe_narrative_paid');
+    if (paidStatus === 'true') {
+      setIsPaid(true);
+    }
+  }, []);
 
-    checkPaidStatus();
+  // Track step changes
+  useEffect(() => {
+    if (step > 0) {
+      trackStepChange(step, steps[step].title);
+    }
+  }, [step]);
 
+  // Load Lemon Squeezy script and setup official event handler
+  useEffect(() => {
     // Load Lemon Squeezy script
     const script = document.createElement('script');
     script.src = 'https://app.lemonsqueezy.com/js/lemon.js';
@@ -106,76 +220,71 @@ const DBENarrativePro = () => {
 
     script.onload = () => {
       console.log('✅ Lemon Squeezy script loaded');
+      
       // Initialize Lemon Squeezy
       if (window.createLemonSqueezy) {
         window.createLemonSqueezy();
       }
-    };
 
-    // Listen for Lemon Squeezy payment events
-    const handleLemonSqueezyEvent = (event) => {
-      // Verify origin for security
-      if (!event.origin || !event.origin.includes('lemonsqueezy.com')) {
-        return;
-      }
-
-      console.log('📨 Received message from Lemon Squeezy:', event);
-
-      if (event.data) {
-        let data;
-        
-        // Handle both string and object data
-        if (typeof event.data === 'string') {
-          try {
-            data = JSON.parse(event.data);
-          } catch (e) {
-            console.log('Not JSON data:', event.data);
-            return;
-          }
-        } else {
-          data = event.data;
-        }
-        
-        console.log('📦 Parsed data:', data);
-        
-        // Check for payment success
-        if (data.event === 'Checkout.Success' || data === 'Checkout.Success') {
-          console.log('🎉 Payment successful!', data);
-          setIsPaid(true);
-          setShowCheckout(false);
-          
-          try {
-            localStorage.setItem('dbe_narrative_paid', 'true');
-            localStorage.setItem('dbe_narrative_payment_date', new Date().toISOString());
-            if (data.data?.order_id) {
-              localStorage.setItem('dbe_order_id', data.data.order_id);
+      // Setup official event handler
+      if (window.LemonSqueezy) {
+        window.LemonSqueezy.Setup({
+          eventHandler: (event) => {
+            console.log('📨 Lemon Squeezy event:', event);
+            
+            // Payment successful!
+            if (event.event === 'Checkout.Success') {
+              console.log('🎉 Payment successful!', event);
+              
+              // Mark as paid
+              setIsPaid(true);
+              
+              // Store in localStorage
+              try {
+                localStorage.setItem('dbe_narrative_paid', 'true');
+                localStorage.setItem('dbe_narrative_payment_date', new Date().toISOString());
+                
+                // Store order ID if available
+                if (event.data?.order_id) {
+                  localStorage.setItem('dbe_order_id', event.data.order_id);
+                  console.log('💾 Stored order ID:', event.data.order_id);
+                  
+                  // Track payment success in GA4
+                  trackPaymentSuccess(event.data.order_id);
+                }
+              } catch (error) {
+                console.error('Error storing payment status:', error);
+              }
+              
+              // Scroll to top
+              setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }, 100);
+              
+              // Show success message
+              alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
             }
-          } catch (error) {
-            console.error('Error storing payment status:', error);
           }
-          
-          setTimeout(() => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }, 100);
-          
-          alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
-        }
+        });
+        console.log('✅ Lemon Squeezy event handler setup complete');
       }
     };
 
-    window.addEventListener('message', handleLemonSqueezyEvent);
+    script.onerror = () => {
+      console.error('❌ Failed to load Lemon Squeezy script');
+      setError('Failed to load payment system. Please refresh the page and try again.');
+    };
 
     return () => {
-      window.removeEventListener('message', handleLemonSqueezyEvent);
       if (script.parentNode) {
         script.parentNode.removeChild(script);
       }
     };
   }, []);
 
-  // NEW: Payment timeout warning
+  // Payment timeout warning
   useEffect(() => {
-    if (showCheckout && !isPaid) {
+    if (generatedDocs && !isPaid) {
       const timeout = setTimeout(() => {
         if (!isPaid) {
           alert('Still waiting for payment confirmation. If you completed payment, please wait a moment or contact support.');
@@ -184,7 +293,7 @@ const DBENarrativePro = () => {
 
       return () => clearTimeout(timeout);
     }
-  }, [showCheckout, isPaid]);
+  }, [generatedDocs, isPaid]);
 
   const ucpList = [
     "California Unified Certification Program (CUCP)",
@@ -238,7 +347,7 @@ const DBENarrativePro = () => {
     "Other/Custom UCP"
   ];
 
-  // NEW: Validation function
+  // Validation function
   const validateStep = (currentStep) => {
     const newErrors = {};
     
@@ -276,7 +385,7 @@ const DBENarrativePro = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // NEW: Load draft function
+  // Load draft function with analytics
   const loadDraft = () => {
     try {
       const savedData = localStorage.getItem('dbe_form_draft');
@@ -287,6 +396,10 @@ const DBENarrativePro = () => {
         setStep(parseInt(savedStep) || 0);
         setSavedDraftAvailable(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Track draft load
+        trackDraftLoad();
+        
         alert('✅ Draft restored! You can continue where you left off.');
       }
     } catch (error) {
@@ -295,13 +408,16 @@ const DBENarrativePro = () => {
     }
   };
 
-  // NEW: Clear draft function
+  // Clear draft function with analytics
   const clearDraft = () => {
     try {
       localStorage.removeItem('dbe_form_draft');
       localStorage.removeItem('dbe_form_step');
       localStorage.removeItem('dbe_form_timestamp');
       setSavedDraftAvailable(false);
+      
+      // Track draft clear
+      trackDraftCleared();
     } catch (error) {
       console.error('Error clearing draft:', error);
     }
@@ -309,6 +425,10 @@ const DBENarrativePro = () => {
 
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Track field completion in GA4
+    trackFieldCompletion(field, value);
+    
     // Clear error for this field when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -320,12 +440,21 @@ const DBENarrativePro = () => {
       ...prev,
       socialIncidents: [...prev.socialIncidents, { date: '', description: '', impact: '' }]
     }));
+    
+    // Track incident addition
+    trackEvent('incident_added', {
+      total_incidents: formData.socialIncidents.length + 1,
+      step_number: step + 1
+    });
   };
 
   const updateIncident = (index, field, value) => {
     const newIncidents = [...formData.socialIncidents];
     newIncidents[index][field] = value;
     setFormData(prev => ({ ...prev, socialIncidents: newIncidents }));
+    
+    // Track incident field completion
+    trackFieldCompletion(`incident_${index}_${field}`, value);
     
     // Clear error for this incident field
     const errorKey = `incident${index}${field.charAt(0).toUpperCase() + field.slice(1)}`;
@@ -338,6 +467,13 @@ const DBENarrativePro = () => {
     if (formData.socialIncidents.length > 1) {
       const newIncidents = formData.socialIncidents.filter((_, i) => i !== index);
       setFormData(prev => ({ ...prev, socialIncidents: newIncidents }));
+      
+      // Track incident removal
+      trackEvent('incident_removed', {
+        incident_index: index,
+        remaining_incidents: newIncidents.length,
+        step_number: step + 1
+      });
     }
   };
 
@@ -365,17 +501,31 @@ ${rtfContent}
 }`;
   };
 
-  // NEW: REAL API CALL to generate documents
+  // REAL API CALL to generate documents with analytics
   const generateDocuments = async () => {
     // Validate all required fields before generating
     if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
       alert('Please fill in all required fields before generating documents.');
+      
+      // Track validation failure
+      trackEvent('generation_validation_failed', {
+        step_number: step + 1
+      });
+      
       return;
     }
 
     setIsGenerating(true);
     setError(null);
     setGenerationProgress('Preparing your information...');
+    
+    // Track generation start
+    trackEvent('document_generation_started', {
+      step_number: step + 1,
+      company_name: formData.companyName,
+      industry: formData.industry,
+      ucp: formData.ucpSelection
+    });
     
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -408,6 +558,12 @@ ${rtfContent}
         reviewSummary: data.reviewSummary
       });
       
+      // Track successful generation
+      trackEvent('document_generation_success', {
+        step_number: step + 1,
+        company_name: formData.companyName
+      });
+      
       await new Promise(resolve => setTimeout(resolve, 500));
       setGenerationProgress('');
       
@@ -418,12 +574,18 @@ ${rtfContent}
       console.error('Generation error:', error);
       setError(error.message || 'Failed to generate documents. Please try again.');
       setGenerationProgress('');
+      
+      // Track generation failure
+      trackEvent('document_generation_failed', {
+        step_number: step + 1,
+        error_message: error.message
+      });
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Download as Word-compatible RTF file
+  // Download as Word-compatible RTF file with analytics
   const downloadAsWord = (content, filename, title) => {
     const rtfContent = textToRTF(title, content);
     const blob = new Blob([rtfContent], { type: 'application/rtf' });
@@ -433,6 +595,13 @@ ${rtfContent}
     a.download = filename.replace('.txt', '.doc');
     a.click();
     URL.revokeObjectURL(url);
+    
+    // Track individual document download
+    trackEvent('document_download', {
+      document_type: title,
+      filename: filename,
+      company_name: formData.companyName
+    });
   };
 
   const downloadAllDocuments = () => {
@@ -442,6 +611,12 @@ ${rtfContent}
     downloadAsWord(generatedDocs.narrative, `${companySlug}_DBE_Narrative.doc`, 'DBE Narrative Statement');
     downloadAsWord(generatedDocs.checklist, `${companySlug}_Documentation_Checklist.doc`, 'Supporting Documentation Checklist');
     downloadAsWord(generatedDocs.reviewSummary, `${companySlug}_Review_Summary.doc`, 'Application Review Summary');
+    
+    // Track download all
+    trackEvent('all_documents_download', {
+      company_name: formData.companyName,
+      total_documents: 4
+    });
     
     alert('All documents downloaded successfully! Open with Microsoft Word to edit.');
   };
@@ -1068,63 +1243,46 @@ ${rtfContent}
                 </div>
               </div>
 
-              {!showCheckout ? (
-                <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-8 rounded-xl shadow-xl">
-                  <div className="flex items-start gap-4">
-                    <CreditCard className="flex-shrink-0" size={32} />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-2xl mb-2">Unlock Complete Package</h4>
-                      <p className="text-amber-50 mb-4">
-                        Complete your purchase to download all 4 AI-enhanced professional documents totaling 8-12 pages.
-                      </p>
-                      <div className="bg-white/20 backdrop-blur p-4 rounded-lg mb-6">
-                        <p className="font-bold mb-2">Complete Package Includes:</p>
-                        <ul className="text-sm space-y-1">
-                          <li>✓ Full AI-enhanced narrative statement (4-6 pages)</li>
-                          <li>✓ Professional cover letter</li>
-                          <li>✓ Complete documentation checklist</li>
-                          <li>✓ Pre-submission review summary</li>
-                          <li>✓ Downloadable Word documents (.doc)</li>
-                          <li>✓ Fully editable in Microsoft Word</li>
-                        </ul>
-                      </div>
-
-                      <div className="flex items-center justify-between bg-white/10 backdrop-blur rounded-lg p-4 mb-4">
-                        <div>
-                          <p className="text-3xl font-bold">$149</p>
-                          <p className="text-sm text-amber-100">One-time payment • Instant access</p>
-                        </div>
-                        <a
-                          href={checkoutUrl}
-                          className="lemonsqueezy-button bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105"
-                        >
-                          Complete Purchase →
-                        </a>
-                      </div>
-                      
-                      <p className="text-xs text-amber-100 text-center">
-                        🔒 Secure checkout powered by Lemon Squeezy • Documents unlock automatically
-                      </p>
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-8 rounded-xl shadow-xl">
+                <div className="flex items-start gap-4">
+                  <CreditCard className="flex-shrink-0" size={32} />
+                  <div className="flex-1">
+                    <h4 className="font-bold text-2xl mb-2">Unlock Complete Package</h4>
+                    <p className="text-amber-50 mb-4">
+                      Complete your purchase to download all 4 AI-enhanced professional documents totaling 8-12 pages.
+                    </p>
+                    <div className="bg-white/20 backdrop-blur p-4 rounded-lg mb-6">
+                      <p className="font-bold mb-2">Complete Package Includes:</p>
+                      <ul className="text-sm space-y-1">
+                        <li>✓ Full AI-enhanced narrative statement (4-6 pages)</li>
+                        <li>✓ Professional cover letter</li>
+                        <li>✓ Complete documentation checklist</li>
+                        <li>✓ Pre-submission review summary</li>
+                        <li>✓ Downloadable Word documents (.doc)</li>
+                        <li>✓ Fully editable in Microsoft Word</li>
+                      </ul>
                     </div>
+
+                    <div className="flex items-center justify-between bg-white/10 backdrop-blur rounded-lg p-4 mb-4">
+                      <div>
+                        <p className="text-3xl font-bold">$149</p>
+                        <p className="text-sm text-amber-100">One-time payment • Instant access</p>
+                      </div>
+                      <a
+                        href={checkoutUrl}
+                        onClick={() => trackPaymentInitiated()}
+                        className="lemonsqueezy-button bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105 no-underline"
+                      >
+                        Complete Purchase →
+                      </a>
+                    </div>
+                    
+                    <p className="text-xs text-amber-100 text-center">
+                      🔒 Secure checkout powered by Lemon Squeezy • Documents unlock automatically
+                    </p>
                   </div>
                 </div>
-              ) : (
-                <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg text-center">
-                  <div className="flex items-center justify-center gap-3 mb-3">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <p className="text-blue-900 font-semibold">Waiting for payment confirmation...</p>
-                  </div>
-                  <p className="text-sm text-blue-700 mb-4">
-                    Complete your payment in the checkout window. This page will automatically unlock when payment is confirmed.
-                  </p>
-                  <button
-                    onClick={() => setShowCheckout(false)}
-                    className="text-blue-600 hover:text-blue-700 text-sm underline"
-                  >
-                    ← Back
-                  </button>
-                </div>
-              )}
+              </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">

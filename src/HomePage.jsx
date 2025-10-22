@@ -1,14 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, FileText, AlertCircle, CheckCircle, ArrowRight, Calendar, Scale, BookOpen, Users, TrendingUp, Award, ChevronDown, ChevronUp } from 'lucide-react';
+import { trackEvent, trackPageView } from './Analytics';
 
 const DBEHomePage = ({ onStartApp }) => {
   const [expandedFaq, setExpandedFaq] = useState(null);
 
+  // Track homepage view
+  useEffect(() => {
+    trackPageView('Home Page');
+  }, []);
+
   const scrollToRuling = () => {
+    trackEvent('learn_about_changes_clicked');
     const rulingSection = document.getElementById('ruling-section');
     if (rulingSection) {
       rulingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  const handleStartApp = () => {
+    trackEvent('get_started_clicked', {
+      location: 'hero_section'
+    });
+    onStartApp();
+  };
+
+  const handleStartAppFinal = () => {
+    trackEvent('get_started_clicked', {
+      location: 'final_cta'
+    });
+    onStartApp();
+  };
+
+  const handleFaqClick = (question, index) => {
+    trackEvent('faq_clicked', {
+      question: question.substring(0, 50), // First 50 chars
+      faq_index: index
+    });
+    setExpandedFaq(expandedFaq === index ? null : index);
+  };
+
+  const handleNewsletterSubmit = (e) => {
+    e.preventDefault();
+    trackEvent('newsletter_signup_clicked');
+    // Add your newsletter logic here
+    alert('Newsletter signup coming soon!');
   };
 
   const faqs = [
@@ -67,7 +103,7 @@ const DBEHomePage = ({ onStartApp }) => {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
-                  onClick={onStartApp}
+                  onClick={handleStartApp}
                   className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-4 px-8 rounded-xl flex items-center justify-center gap-3 text-lg transition-all transform hover:scale-105 shadow-xl"
                 >
                   Create My AI Narrative
@@ -257,29 +293,31 @@ const DBEHomePage = ({ onStartApp }) => {
               <Scale className="text-blue-600" size={32} />
               Legal Citation: 49 CFR Part 26 (Amended October 2025)
             </h3>
-            <div className="bg-gray-50 border-l-4 border-blue-600 p-6 rounded-r-lg">
-              <p className="text-gray-800 leading-relaxed mb-4">
-                <strong>Official Regulatory Text:</strong> "Effective October 16, 2025, certification of disadvantaged 
-                business enterprises shall require individualized determination of social and economic disadvantage. 
-                No presumption of disadvantage shall be made based solely on membership in a particular racial, 
-                ethnic, or gender group."
-              </p>
-              <div className="flex items-start gap-3 mb-4">
-                <BookOpen className="text-blue-600 flex-shrink-0 mt-1" size={20} />
-                <p className="text-gray-700 text-sm">
-                  <strong>Source:</strong> U.S. Department of Transportation, Final Rule FR-2025-19460, Federal Register Vol. 90, No. 192
+              <div className="bg-gray-50 border-l-4 border-blue-600 p-6 rounded-r-lg">
+                <p className="text-gray-800 leading-relaxed mb-4">
+                  <strong>Official Regulatory Text:</strong> "Effective October 16, 2025, certification of disadvantaged 
+                  business enterprises shall require individualized determination of social and economic disadvantage. 
+                  No presumption of disadvantage shall be made based solely on membership in a particular racial, 
+                  ethnic, or gender group."
                 </p>
-              </div>
-              <a
-                href="https://www.federalregister.gov/documents/2025/10/03/2025-19460/disadvantaged-business-enterprise-program-and-disadvantaged-business-enterprise-in-airport"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all"
-              >
-                <Scale size={20} />
-                Read Full Official Ruling
-                <ArrowRight size={16} />
-              </a>
+                <div className="flex items-start gap-3 mb-4">
+                  <BookOpen className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                  <p className="text-gray-700 text-sm">
+                    <strong>Source:</strong> U.S. Department of Transportation, Final Rule FR-2025-19460, Federal Register Vol. 90, No. 192
+                  </p>
+                </div>
+
+                <a
+                  href="https://www.federalregister.gov/documents/2025/10/03/2025-19460/disadvantaged-business-enterprise-program-and-disadvantaged-business-enterprise-in-airport"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackEvent('official_ruling_clicked')}
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all"
+                >
+                  <Scale size={20} />
+                  Read Full Official Ruling
+                  <ArrowRight size={16} />
+                </a>
             </div>
           </div>
         </div>
@@ -392,16 +430,20 @@ const DBEHomePage = ({ onStartApp }) => {
               <p className="text-gray-600 mb-6">
                 Join 2,500+ DBE business owners staying ahead of regulatory changes.
               </p>
-              <div className="space-y-4">
+              <form onSubmit={handleNewsletterSubmit} className="space-y-4">
                 <input
                   type="email"
                   placeholder="Enter your email"
+                  required
                   className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none text-gray-900"
                 />
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                <button 
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all"
+                >
                   Get Free Updates
                 </button>
-              </div>
+              </form>
               <p className="text-xs text-gray-500 mt-4">
                 We respect your privacy. Unsubscribe at any time.
               </p>
@@ -424,7 +466,7 @@ const DBEHomePage = ({ onStartApp }) => {
             {faqs.map((faq, idx) => (
               <div key={idx} className="bg-white rounded-lg shadow-md overflow-hidden">
                 <button
-                  onClick={() => setExpandedFaq(expandedFaq === idx ? null : idx)}
+                  onClick={() => handleFaqClick(faq.question, idx)}
                   className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
                   <span className="font-bold text-left text-gray-900">{faq.question}</span>
@@ -454,7 +496,7 @@ const DBEHomePage = ({ onStartApp }) => {
             Generate your professional narrative in 30 minutes.
           </p>
           <button
-            onClick={onStartApp}
+            onClick={handleStartAppFinal}
             className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-5 px-10 rounded-xl text-xl flex items-center justify-center gap-3 mx-auto transition-all transform hover:scale-105 shadow-2xl"
           >
             Start Your Narrative Now
