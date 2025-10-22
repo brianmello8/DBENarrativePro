@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, Download, FileText, AlertCircle, CheckCircle, Building2, DollarSign, Users, Shield, Lock, Eye } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Download, FileText, AlertCircle, CheckCircle, Building2, DollarSign, Users, Shield, Eye, CreditCard, Trash2, Save } from 'lucide-react';
 
-const DBENarrativePro = ({ redirectLicenseKey }) => {
+const DBENarrativePro = () => {
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({
     companyName: '',
@@ -25,46 +25,137 @@ const DBENarrativePro = ({ redirectLicenseKey }) => {
   const [generatedDocs, setGeneratedDocs] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
-  const [licenseKey, setLicenseKey] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [licenseError, setLicenseError] = useState('');
-  const [showLicenseInput, setShowLicenseInput] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  
+  // NEW: Validation and error states
+  const [errors, setErrors] = useState({});
+  const [error, setError] = useState(null);
+  const [generationProgress, setGenerationProgress] = useState('');
+  const [savedDraftAvailable, setSavedDraftAvailable] = useState(false);
 
-  // Handle auto-verification when redirected from Gumroad
+  // ============================================
+  // TODO: REPLACE THESE WITH YOUR REAL VALUES
+  // ============================================
+  const LEMON_SQUEEZY_VARIANT_ID = "1052337";
+  // ============================================
+
+  // NEW: Auto-save draft to localStorage
   useEffect(() => {
-    // Check if already verified (localStorage cache)
-    const checkStoredLicense = () => {
+    const saveDraft = () => {
       try {
-        const storedLicense = localStorage.getItem('dbe_license_verified');
-        if (storedLicense) {
-          const licenseData = JSON.parse(storedLicense);
-          // Check if verification is less than 24 hours old
-          const hoursSinceVerification = (Date.now() - licenseData.timestamp) / (1000 * 60 * 60);
-          if (hoursSinceVerification < 24) {
-            setIsPaid(true);
-            setLicenseKey(licenseData.key);
-            return true;
+        localStorage.setItem('dbe_form_draft', JSON.stringify(formData));
+        localStorage.setItem('dbe_form_step', step.toString());
+        localStorage.setItem('dbe_form_timestamp', Date.now().toString());
+      } catch (error) {
+        console.error('Error saving draft:', error);
+      }
+    };
+
+    // Debounce save - only save after 2 seconds of no changes
+    const timeoutId = setTimeout(saveDraft, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [formData, step]);
+
+  // NEW: Load saved draft on mount
+  useEffect(() => {
+    const checkForDraft = () => {
+      try {
+        const savedData = localStorage.getItem('dbe_form_draft');
+        const savedStep = localStorage.getItem('dbe_form_step');
+        const timestamp = localStorage.getItem('dbe_form_timestamp');
+        
+        if (savedData && timestamp) {
+          const hoursSinceSave = (Date.now() - parseInt(timestamp)) / (1000 * 60 * 60);
+          
+          // Only offer to restore if less than 7 days old
+          if (hoursSinceSave < 168) {
+            setSavedDraftAvailable(true);
           } else {
-            // Clear expired license
-            localStorage.removeItem('dbe_license_verified');
+            // Clear old drafts
+            clearDraft();
           }
         }
       } catch (error) {
-        console.error('Error reading stored license:', error);
+        console.error('Error checking for draft:', error);
       }
-      return false;
     };
 
-    // First check if we have a cached valid license
-    const hasValidCache = checkStoredLicense();
+    checkForDraft();
+  }, []);
 
-    // If redirected from Gumroad with new license key, verify it
-    if (redirectLicenseKey && !hasValidCache) {
-      setLicenseKey(redirectLicenseKey);
-      setShowLicenseInput(true); // Show the verification UI
-      verifyLicense(redirectLicenseKey); // Auto-verify the license
+  // Check payment status and listen for payment events
+  useEffect(() => {
+    const checkPaidStatus = () => {
+      try {
+        const paidStatus = localStorage.getItem('dbe_narrative_paid');
+        if (paidStatus === 'true') {
+          setIsPaid(true);
+        }
+      } catch (error) {
+        console.error('Error reading payment status:', error);
+      }
+    };
+
+    checkPaidStatus();
+
+    // IMPROVED: Better payment verification
+    const handleLemonSqueezyEvent = (event) => {
+      // Verify origin for security
+      if (!event.origin.includes('lemonsqueezy.com')) {
+        return;
+      }
+
+      if (event.data && typeof event.data === 'string') {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.event === 'Checkout.Success') {
+            console.log('Payment successful!', data);
+            setIsPaid(true);
+            setShowCheckout(false);
+            
+            try {
+              localStorage.setItem('dbe_narrative_paid', 'true');
+              localStorage.setItem('dbe_narrative_payment_date', new Date().toISOString());
+              // Store order ID if available
+              if (data.data?.order_id) {
+                localStorage.setItem('dbe_order_id', data.data.order_id);
+              }
+            } catch (error) {
+              console.error('Error storing payment status:', error);
+            }
+            
+            setTimeout(() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
+            
+            alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
+          }
+        } catch (e) {
+          console.error('Error parsing message:', e);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleLemonSqueezyEvent);
+
+    return () => {
+      window.removeEventListener('message', handleLemonSqueezyEvent);
+    };
+  }, []);
+
+  // NEW: Payment timeout warning
+  useEffect(() => {
+    if (showCheckout && !isPaid) {
+      const timeout = setTimeout(() => {
+        if (!isPaid) {
+          alert('Still waiting for payment confirmation. If you completed payment, please wait a moment or contact support.');
+        }
+      }, 600000); // 10 minutes
+
+      return () => clearTimeout(timeout);
     }
-  }, [redirectLicenseKey]);
+  }, [showCheckout, isPaid]);
 
   const ucpList = [
     "California Unified Certification Program (CUCP)",
@@ -118,8 +209,81 @@ const DBENarrativePro = ({ redirectLicenseKey }) => {
     "Other/Custom UCP"
   ];
 
+  // NEW: Validation function
+  const validateStep = (currentStep) => {
+    const newErrors = {};
+    
+    if (currentStep === 1) { // Business Profile
+      if (!formData.companyName?.trim()) newErrors.companyName = "Company name is required";
+      if (!formData.ownerName?.trim()) newErrors.ownerName = "Your name is required";
+      if (!formData.industry?.trim()) newErrors.industry = "Industry is required";
+      if (!formData.yearsInBusiness || formData.yearsInBusiness < 1) newErrors.yearsInBusiness = "Valid years in business required";
+      if (!formData.annualRevenue || formData.annualRevenue < 1) newErrors.annualRevenue = "Valid annual revenue required";
+      if (!formData.location?.trim()) newErrors.location = "Business location is required";
+      if (!formData.ucpSelection) newErrors.ucpSelection = "Please select your UCP";
+      if (formData.ucpSelection === 'Other/Custom UCP' && !formData.customUCP?.trim()) {
+        newErrors.customUCP = "Please enter your UCP name";
+      }
+    }
+    
+    if (currentStep === 2) { // Social Disadvantage
+      const firstIncident = formData.socialIncidents[0];
+      if (!firstIncident.date?.trim()) newErrors.incident0Date = "Date is required for first incident";
+      if (!firstIncident.description?.trim() || firstIncident.description.length < 50) {
+        newErrors.incident0Description = "Please provide at least 50 characters describing the incident";
+      }
+    }
+    
+    if (currentStep === 3) { // Economic Disadvantage
+      if (!formData.financingBarriers?.trim() || formData.financingBarriers.length < 50) {
+        newErrors.financingBarriers = "Please provide at least 50 characters about financing barriers";
+      }
+      if (!formData.contractLosses?.trim() || formData.contractLosses.length < 50) {
+        newErrors.contractLosses = "Please provide at least 50 characters about contract losses";
+      }
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // NEW: Load draft function
+  const loadDraft = () => {
+    try {
+      const savedData = localStorage.getItem('dbe_form_draft');
+      const savedStep = localStorage.getItem('dbe_form_step');
+      
+      if (savedData) {
+        setFormData(JSON.parse(savedData));
+        setStep(parseInt(savedStep) || 0);
+        setSavedDraftAvailable(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        alert('✅ Draft restored! You can continue where you left off.');
+      }
+    } catch (error) {
+      console.error('Error loading draft:', error);
+      alert('Failed to load draft. Please start fresh.');
+    }
+  };
+
+  // NEW: Clear draft function
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem('dbe_form_draft');
+      localStorage.removeItem('dbe_form_step');
+      localStorage.removeItem('dbe_form_timestamp');
+      setSavedDraftAvailable(false);
+    } catch (error) {
+      console.error('Error clearing draft:', error);
+    }
+  };
+
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
   };
 
   const addIncident = () => {
@@ -133,6 +297,12 @@ const DBENarrativePro = ({ redirectLicenseKey }) => {
     const newIncidents = [...formData.socialIncidents];
     newIncidents[index][field] = value;
     setFormData(prev => ({ ...prev, socialIncidents: newIncidents }));
+    
+    // Clear error for this incident field
+    const errorKey = `incident${index}${field.charAt(0).toUpperCase() + field.slice(1)}`;
+    if (errors[errorKey]) {
+      setErrors(prev => ({ ...prev, [errorKey]: undefined }));
+    }
   };
 
   const removeIncident = (index) => {
@@ -166,415 +336,62 @@ ${rtfContent}
 }`;
   };
 
+  // NEW: REAL API CALL to generate documents
   const generateDocuments = async () => {
+    // Validate all required fields before generating
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+      alert('Please fill in all required fields before generating documents.');
+      return;
+    }
+
     setIsGenerating(true);
+    setError(null);
+    setGenerationProgress('Preparing your information...');
     
-    setTimeout(() => {
-      const ucpName = formData.ucpSelection === 'Other/Custom UCP' ? formData.customUCP : formData.ucpSelection;
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setGenerationProgress('Sending data to AI for analysis...');
       
-      // Generate Cover Letter
-      const coverLetter = `${formData.ownerName}
-${formData.companyName}
-${formData.location}
-
-${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-
-${ucpName}
-Disadvantaged Business Enterprise (DBE) Program
-
-RE: DBE Recertification Application - ${formData.companyName}
-
-Dear Certification Officer,
-
-I am writing to submit my application for recertification as a Disadvantaged Business Enterprise (DBE) under 49 CFR Part 26, as amended. ${formData.companyName} has been operating in the ${formData.industry} industry for ${formData.yearsInBusiness} years and maintains an annual revenue of approximately $${Number(formData.annualRevenue).toLocaleString()}.
-
-As required under the new regulatory framework effective October 2025, I am providing individualized evidence of both social and economic disadvantage. The enclosed narrative statement details specific incidents of discrimination and economic barriers that have materially impacted my business operations and growth potential.
-
-This application includes:
-
-1. Detailed narrative statement of social and economic disadvantage
-2. Supporting documentation as outlined in the attached checklist
-3. Current financial statements and business records
-4. Evidence of continuing disadvantage
-
-I have experienced persistent barriers in accessing capital, securing bonding, and competing for contracts on equal terms. These disadvantages stem from systemic bias and have resulted in measurable economic harm to my business, as detailed in the narrative statement.
-
-I am committed to maintaining compliance with all DBE program requirements and appreciate your consideration of this application. Please contact me at your earliest convenience if you require any additional information or documentation.
-
-Thank you for your time and attention to this matter.
-
-Respectfully submitted,
-
-${formData.ownerName}
-Owner, ${formData.companyName}`;
-
-      // Generate Narrative Statement
-      const narrative = `DBE NARRATIVE STATEMENT
-${formData.companyName}
-Prepared for: ${ucpName}
-
-═══════════════════════════════════════════════════════════════
-
-I. INTRODUCTION AND BUSINESS BACKGROUND
-
-I, ${formData.ownerName}, am the owner and principal of ${formData.companyName}, a ${formData.industry} business located at ${formData.location}. My company has been in operation for ${formData.yearsInBusiness} years with current annual revenues of approximately $${Number(formData.annualRevenue).toLocaleString()}.
-
-This narrative provides individualized evidence of social and economic disadvantage as required under 49 CFR Part 26, as amended effective October 2025. The following sections document specific incidents of discrimination, economic barriers, and the measurable impact these disadvantages have had on my business operations and growth.
-
-═══════════════════════════════════════════════════════════════
-
-II. SOCIAL DISADVANTAGE - SPECIFIC INCIDENTS
-
-${formData.socialIncidents.map((incident, idx) => `
-INCIDENT ${idx + 1}: ${incident.date}
-
-Description:
-${incident.description}
-
-Impact on Business:
-${incident.impact}
-
-This incident demonstrates a clear pattern of discriminatory treatment that has materially affected my ability to compete on equal terms in the marketplace.
-`).join('\n───────────────────────────────────────────────────────────\n')}
-
-═══════════════════════════════════════════════════════════════
-
-III. ECONOMIC DISADVANTAGE - DOCUMENTED BARRIERS
-
-A. ACCESS TO CAPITAL AND FINANCING
-
-${formData.financingBarriers}
-
-These financing barriers have directly constrained my business growth and limited my ability to pursue larger contracts and expand operations.
-
-B. BONDING CHALLENGES
-
-${formData.bondingChallenges || 'Bonding requirements have presented additional financial barriers, with premium rates that exceed industry averages for similarly situated businesses.'}
-
-C. INSURANCE COSTS
-
-${formData.insuranceChallenges || 'Insurance costs represent a disproportionate burden on my business operations compared to industry peers with similar risk profiles.'}
-
-D. CONTRACT LOSSES AND BID DISPARITIES
-
-${formData.contractLosses}
-
-These documented instances of bid irregularities and contract losses demonstrate systematic disadvantage in the competitive bidding process.
-
-E. MARKET POSITION AND REVENUE IMPACT
-
-${formData.marketDisadvantages}
-
-The cumulative effect of these barriers has artificially constrained my business revenue and market position below what should be expected given my technical capabilities, experience, and qualifications.
-
-═══════════════════════════════════════════════════════════════
-
-IV. ADDITIONAL SUPPORTING EVIDENCE
-
-${formData.specificExamples}
-
-═══════════════════════════════════════════════════════════════
-
-V. SUPPORTING DOCUMENTATION
-
-The following documentation is provided in support of this narrative:
-
-${formData.documentation}
-
-═══════════════════════════════════════════════════════════════
-
-VI. CONCLUSION
-
-The evidence presented in this narrative demonstrates individualized proof of both social and economic disadvantage as required under 49 CFR Part 26. I have experienced persistent discrimination and economic barriers that have materially and substantially affected my ability to compete in the marketplace on equal terms.
-
-These disadvantages are not merely theoretical but are documented through specific incidents, financial records, and comparative analysis with similarly situated businesses. The cumulative impact has resulted in measurable economic harm and continues to affect my business operations.
-
-I respectfully request certification as a Disadvantaged Business Enterprise based on this individualized showing of disadvantage.
-
-Respectfully submitted,
-
-${formData.ownerName}
-Owner, ${formData.companyName}
-${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
-
-      // Generate Documentation Checklist
-      const checklist = `SUPPORTING DOCUMENTATION CHECKLIST
-${formData.companyName} - DBE Recertification Application
-
-═══════════════════════════════════════════════════════════════
-
-This checklist identifies all supporting documentation that should accompany your DBE recertification application. Check each item as you gather and organize your materials.
-
-REQUIRED BUSINESS DOCUMENTS:
-☐ Current business license and registrations
-☐ Articles of incorporation or organization
-☐ Operating agreement or bylaws
-☐ Most recent three years of business tax returns
-☐ Current year-to-date financial statements
-☐ Business bank statements (most recent 12 months)
-
-OWNERSHIP DOCUMENTATION:
-☐ Stock certificates or ownership interest documents
-☐ Proof of capital contributions
-☐ Documentation of management authority
-☐ Résumé demonstrating expertise in the industry
-
-SOCIAL DISADVANTAGE EVIDENCE:
-${formData.socialIncidents.map((incident, idx) => `
-☐ Incident ${idx + 1} (${incident.date}):
-   - Bid tabulation sheets or contract documents
-   - Email correspondence or written communications
-   - Meeting notes or memoranda
-   - Any other contemporaneous documentation
-`).join('\n')}
-
-ECONOMIC DISADVANTAGE EVIDENCE:
-☐ Loan application documents and denial letters
-☐ Bank correspondence regarding financing terms
-☐ Bonding quotes showing premium rates
-☐ Industry rate comparison data
-☐ Insurance quotes and policy documents
-☐ Bid tabulation sheets showing contract awards to higher bidders
-☐ Financial analysis comparing market position to industry peers
-☐ Documentation of revenue constraints
-
-ADDITIONAL SUPPORTING MATERIALS:
-☐ Letters of reference from clients or industry professionals
-☐ Project portfolios demonstrating capabilities
-☐ Industry certifications and licenses
-☐ Any additional evidence referenced in the narrative
-
-PERSONAL FINANCIAL STATEMENT:
-☐ Personal financial statement (most recent)
-☐ Personal tax returns (most recent three years)
-☐ Documentation of personal net worth
-
-APPLICATION FORMS:
-☐ Completed UCP application form
-☐ Personal net worth statement
-☐ Affidavit of disadvantage
-☐ Any additional forms required by ${ucpName}
-
-═══════════════════════════════════════════════════════════════
-
-ORGANIZATION TIPS:
-
-1. Create a table of contents listing all documents in order
-2. Use tabs or dividers to separate document categories
-3. Number each page sequentially
-4. Make two complete copies (one for submission, one for your records)
-5. Consider electronic submission if accepted by your UCP
-
-═══════════════════════════════════════════════════════════════
-
-SUBMISSION CHECKLIST:
-
-☐ All documents are signed where required
-☐ All documents are dated appropriately
-☐ Documents are organized in logical order
-☐ Cover letter is included
-☐ Narrative statement is included
-☐ All referenced exhibits are included
-☐ Copies are legible and complete
-☐ Application is submitted by deadline
-
-═══════════════════════════════════════════════════════════════
-
-IMPORTANT NOTES:
-
-- Keep copies of everything you submit
-- Follow up within 10 business days to confirm receipt
-- Be prepared to provide additional documentation if requested
-- Maintain organized files for future reference
-
-Prepared by: DBE Narrative Pro
-Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
-
-      // Generate Review Summary
-      const reviewSummary = `PRE-SUBMISSION REVIEW SUMMARY
-${formData.companyName} - DBE Recertification Application
-
-═══════════════════════════════════════════════════════════════
-
-Use this summary to review your application before submission.
-
-APPLICATION COMPLETENESS CHECK:
-
-NARRATIVE QUALITY:
-☐ Narrative includes specific dates and incidents
-☐ Each incident describes what happened in detail
-☐ Business impact is quantified where possible
-☐ Economic barriers are documented with numbers
-☐ Comparisons to similarly situated businesses included
-☐ Language is professional and factual
-☐ No general or vague statements without support
-
-EVIDENCE STRENGTH:
-☐ At least ${formData.socialIncidents.length} social disadvantage incident(s) documented
-☐ Economic barriers include specific dollar amounts
-☐ Supporting documentation is referenced and attached
-☐ Financial records demonstrate business performance
-☐ Independent verification available where possible
-
-REGULATORY COMPLIANCE:
-☐ Application meets new 2025 individualized evidence standards
-☐ No reliance on group-based presumptions
-☐ Personal disadvantage clearly distinguished from business disadvantage
-☐ Continuing disadvantage is demonstrated
-☐ All required forms completed and signed
-
-═══════════════════════════════════════════════════════════════
-
-KEY INFORMATION SUMMARY:
-
-Business Name: ${formData.companyName}
-Owner: ${formData.ownerName}
-Industry: ${formData.industry}
-Years in Business: ${formData.yearsInBusiness}
-Annual Revenue: $${Number(formData.annualRevenue).toLocaleString()}
-Location: ${formData.location}
-Submitting to: ${ucpName}
-
-═══════════════════════════════════════════════════════════════
-
-NARRATIVE STRENGTH ASSESSMENT:
-
-Social Disadvantage Documentation:
-- Number of specific incidents: ${formData.socialIncidents.length}
-- Incidents include dates: ${formData.socialIncidents.every(i => i.date) ? 'Yes ✓' : 'Review needed'}
-- Incidents include detailed descriptions: ${formData.socialIncidents.every(i => i.description.length > 100) ? 'Yes ✓' : 'Review needed'}
-- Business impact quantified: ${formData.socialIncidents.some(i => i.impact) ? 'Yes ✓' : 'Review needed'}
-
-Economic Disadvantage Documentation:
-- Financing barriers documented: ${formData.financingBarriers ? 'Yes ✓' : 'Review needed'}
-- Contract losses documented: ${formData.contractLosses ? 'Yes ✓' : 'Review needed'}
-- Market disadvantages explained: ${formData.marketDisadvantages ? 'Yes ✓' : 'Review needed'}
-- Includes specific dollar amounts: Review your narrative
-- Includes comparative data: Review your narrative
-
-═══════════════════════════════════════════════════════════════
-
-RECOMMENDATIONS FOR STRENGTHENING YOUR APPLICATION:
-
-1. SPECIFICITY: Ensure every claim includes:
-   - Specific dates or time periods
-   - Names of institutions/individuals (where appropriate)
-   - Dollar amounts and percentages
-   - Comparison to industry norms
-
-2. DOCUMENTATION: Attach supporting evidence for:
-   - Every incident mentioned in the narrative
-   - Financial claims and comparisons
-   - Bid tabulations and contract losses
-   - Loan applications and denials
-
-3. CLARITY: Review narrative for:
-   - Clear cause-and-effect relationships
-   - Logical organization and flow
-   - Professional tone throughout
-   - No contradictions or inconsistencies
-
-4. COMPLETENESS: Verify you have:
-   - Addressed both social AND economic disadvantage
-   - Provided individualized (not group-based) evidence
-   - Demonstrated continuing disadvantage
-   - Included all required application forms
-
-═══════════════════════════════════════════════════════════════
-
-COMMON PITFALLS TO AVOID:
-
-✗ Vague or general statements without specific examples
-✗ Relying on race or gender without individualized proof
-✗ Failing to quantify economic impact
-✗ Missing supporting documentation
-✗ Incomplete application forms
-✗ Unsigned documents
-✗ Inconsistencies between narrative and documentation
-
-═══════════════════════════════════════════════════════════════
-
-FINAL SUBMISSION CHECKLIST:
-
-☐ Read entire application one final time
-☐ Have someone else review for clarity and completeness
-☐ Verify all cross-references are accurate
-☐ Confirm all exhibits are attached and labeled
-☐ Make complete copies for your records
-☐ Submit by deadline via required method
-☐ Follow up to confirm receipt
-
-═══════════════════════════════════════════════════════════════
-
-AFTER SUBMISSION:
-
-1. Confirm receipt within 10 business days
-2. Respond promptly to any requests for additional information
-3. Keep organized files of all correspondence
-4. Note any deadlines for supplemental materials
-5. Maintain records for future recertification
-
-═══════════════════════════════════════════════════════════════
-
-Good luck with your DBE recertification!
-
-This review summary was generated by DBE Narrative Pro
-${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
-
-      const mockDocs = {
-        preview: `DBE NARRATIVE STATEMENT - PREVIEW
-        
-This is a preview of your narrative statement. The complete package includes:
-
-══════════════════════════════════════════════════════
-
-COMPANY: ${formData.companyName}
-OWNER: ${formData.ownerName}
-INDUSTRY: ${formData.industry}
-YEARS IN BUSINESS: ${formData.yearsInBusiness}
-ANNUAL REVENUE: $${Number(formData.annualRevenue).toLocaleString()}
-
-══════════════════════════════════════════════════════
-
-SOCIAL DISADVANTAGE - DOCUMENTED INCIDENTS:
-${formData.socialIncidents.length} incident(s) documented with specific dates, 
-descriptions, and business impact.
-
-ECONOMIC DISADVANTAGE - DOCUMENTED BARRIERS:
-Financing challenges, contract losses, and market disadvantages 
-detailed with specific dollar amounts and comparative analysis.
-
-══════════════════════════════════════════════════════
-
-[The full narrative is approximately 4-6 pages and includes:]
-
-✓ Complete incident descriptions
-✓ Detailed economic analysis
-✓ Supporting documentation references
-✓ Professional formatting for UCP submission
-
-[Preview shows first 500 characters of full narrative:]
-
-${narrative.substring(0, 500)}...
-
-══════════════════════════════════════════════════════
-
-UNLOCK COMPLETE PACKAGE TO DOWNLOAD:
-- Full Narrative Statement (4-6 pages)
-- Professional Cover Letter
-- Documentation Checklist
-- Pre-Submission Review Summary
-
-All documents formatted for Microsoft Word editing.`,
-        narrative,
-        coverLetter,
-        checklist,
-        reviewSummary
-      };
+      // REAL API CALL!
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ formData })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate documents');
+      }
+
+      setGenerationProgress('AI is crafting your professional narrative...');
+      const data = await response.json();
       
-      setGeneratedDocs(mockDocs);
+      setGenerationProgress('Documents generated successfully!');
+      
+      setGeneratedDocs({
+        preview: data.preview,
+        narrative: data.narrative,
+        coverLetter: data.coverLetter,
+        checklist: data.checklist,
+        reviewSummary: data.reviewSummary
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setGenerationProgress('');
+      
+      // Scroll to top to see the preview
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+    } catch (error) {
+      console.error('Generation error:', error);
+      setError(error.message || 'Failed to generate documents. Please try again.');
+      setGenerationProgress('');
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
   // Download as Word-compatible RTF file
@@ -600,58 +417,7 @@ All documents formatted for Microsoft Word editing.`,
     alert('All documents downloaded successfully! Open with Microsoft Word to edit.');
   };
 
-  const handlePayment = () => {
-    // Get current URL for redirect
-    const currentUrl = window.location.origin + window.location.pathname;
-    // Build Gumroad URL with redirect parameter
-    const gumroadUrl = `https://narrativepro.gumroad.com/l/zlixb?wanted=true&redirect_url=${encodeURIComponent(currentUrl)}?license_key={license_key}`;
-    
-    window.open(gumroadUrl, '_blank');
-    setShowLicenseInput(true);
-  };
-
-  const verifyLicense = async (keyToVerify = licenseKey) => {
-    setVerifying(true);
-    setLicenseError('');
-    
-    try {
-      const response = await fetch('/api/verify-license', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          licenseKey: keyToVerify 
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.valid) {
-        // Store verification in localStorage with 24-hour expiration
-        try {
-          localStorage.setItem('dbe_license_verified', JSON.stringify({
-            key: keyToVerify,
-            timestamp: Date.now(),
-            email: data.purchaseInfo?.email
-          }));
-        } catch (error) {
-          console.error('Error storing license:', error);
-        }
-        
-        setIsPaid(true);
-        setLicenseKey(keyToVerify);
-        alert('License verified successfully! Your documents are now unlocked.');
-      } else {
-        setLicenseError(data.error || 'Invalid license key. Please check your email from Gumroad and try again.');
-      }
-    } catch (error) {
-      console.error('Verification error:', error);
-      setLicenseError('Unable to verify license. Please check your internet connection and try again.');
-    } finally {
-      setVerifying(false);
-    }
-  };
+  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/checkout/buy/${LEMON_SQUEEZY_VARIANT_ID}?embed=1&media=0&logo=0&desc=0&discount=0&dark=1`;
 
   const steps = [
     {
@@ -660,6 +426,38 @@ All documents formatted for Microsoft Word editing.`,
       subtitle: 'New DBE Certification Requirements',
       content: (
         <div className="space-y-6">
+          {savedDraftAvailable && (
+            <div className="bg-blue-50 border-2 border-blue-300 p-6 rounded-xl">
+              <div className="flex items-start gap-3">
+                <Save className="text-blue-600 flex-shrink-0 mt-1" size={24} />
+                <div className="flex-1">
+                  <h4 className="font-bold text-blue-900 mb-2">Saved Draft Found!</h4>
+                  <p className="text-sm text-blue-800 mb-3">
+                    We found a saved draft from a previous session. Would you like to continue where you left off?
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={loadDraft}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
+                    >
+                      Continue Draft
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Delete saved draft and start fresh?')) {
+                          clearDraft();
+                        }
+                      }}
+                      className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg"
+                    >
+                      Start Fresh
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8 rounded-xl shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Important Regulatory Update - October 2025</h2>
             <p className="text-blue-50 leading-relaxed">
@@ -745,22 +543,32 @@ All documents formatted for Microsoft Word editing.`,
               <label className="block text-sm font-bold mb-2 text-gray-700">Company Name *</label>
               <input
                 type="text"
-                className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                  errors.companyName ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                }`}
                 placeholder="ABC Construction LLC"
                 value={formData.companyName}
                 onChange={(e) => updateFormData('companyName', e.target.value)}
               />
+              {errors.companyName && (
+                <p className="text-red-600 text-sm mt-1">{errors.companyName}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-bold mb-2 text-gray-700">Your Full Name *</label>
               <input
                 type="text"
-                className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                  errors.ownerName ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                }`}
                 placeholder="John Smith"
                 value={formData.ownerName}
                 onChange={(e) => updateFormData('ownerName', e.target.value)}
               />
+              {errors.ownerName && (
+                <p className="text-red-600 text-sm mt-1">{errors.ownerName}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">As business owner</p>
             </div>
           </div>
@@ -769,11 +577,16 @@ All documents formatted for Microsoft Word editing.`,
             <label className="block text-sm font-bold mb-2 text-gray-700">Industry/Specialization *</label>
             <input
               type="text"
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                errors.industry ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+              }`}
               placeholder="Heavy Highway Construction, Electrical Contracting, etc."
               value={formData.industry}
               onChange={(e) => updateFormData('industry', e.target.value)}
             />
+            {errors.industry && (
+              <p className="text-red-600 text-sm mt-1">{errors.industry}</p>
+            )}
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -781,22 +594,32 @@ All documents formatted for Microsoft Word editing.`,
               <label className="block text-sm font-bold mb-2 text-gray-700">Years in Business *</label>
               <input
                 type="number"
-                className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                  errors.yearsInBusiness ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                }`}
                 placeholder="8"
                 value={formData.yearsInBusiness}
                 onChange={(e) => updateFormData('yearsInBusiness', e.target.value)}
               />
+              {errors.yearsInBusiness && (
+                <p className="text-red-600 text-sm mt-1">{errors.yearsInBusiness}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-bold mb-2 text-gray-700">Annual Revenue *</label>
               <input
                 type="text"
-                className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                  errors.annualRevenue ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                }`}
                 placeholder="1250000"
                 value={formData.annualRevenue}
                 onChange={(e) => updateFormData('annualRevenue', e.target.value)}
               />
+              {errors.annualRevenue && (
+                <p className="text-red-600 text-sm mt-1">{errors.annualRevenue}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">Enter without $ or commas</p>
             </div>
           </div>
@@ -805,17 +628,24 @@ All documents formatted for Microsoft Word editing.`,
             <label className="block text-sm font-bold mb-2 text-gray-700">Primary Business Location *</label>
             <input
               type="text"
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                errors.location ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+              }`}
               placeholder="123 Main St, Sacramento, CA 95814"
               value={formData.location}
               onChange={(e) => updateFormData('location', e.target.value)}
             />
+            {errors.location && (
+              <p className="text-red-600 text-sm mt-1">{errors.location}</p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-bold mb-2 text-gray-700">Your UCP (Unified Certification Program) *</label>
             <select
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                errors.ucpSelection ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+              }`}
               value={formData.ucpSelection}
               onChange={(e) => updateFormData('ucpSelection', e.target.value)}
             >
@@ -824,6 +654,9 @@ All documents formatted for Microsoft Word editing.`,
                 <option key={idx} value={ucp}>{ucp}</option>
               ))}
             </select>
+            {errors.ucpSelection && (
+              <p className="text-red-600 text-sm mt-1">{errors.ucpSelection}</p>
+            )}
             <p className="text-xs text-gray-500 mt-1">The certification program where you will submit this application</p>
           </div>
 
@@ -832,17 +665,22 @@ All documents formatted for Microsoft Word editing.`,
               <label className="block text-sm font-bold mb-2 text-gray-700">Enter UCP Name *</label>
               <input
                 type="text"
-                className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                  errors.customUCP ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                }`}
                 placeholder="Full name of your certification program"
                 value={formData.customUCP}
                 onChange={(e) => updateFormData('customUCP', e.target.value)}
               />
+              {errors.customUCP && (
+                <p className="text-red-600 text-sm mt-1">{errors.customUCP}</p>
+              )}
             </div>
           )}
 
           <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
             <p className="text-sm text-blue-900">
-              <strong>Note:</strong> This information will be used to properly address your application and generate accurate submission documents.
+              <strong>Note:</strong> This information will be used to properly address your application and generate accurate submission documents. Your progress is automatically saved.
             </p>
           </div>
         </div>
@@ -889,11 +727,16 @@ All documents formatted for Microsoft Word editing.`,
                   </label>
                   <input
                     type="text"
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+                    className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                      errors[`incident${index}Date`] ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                    }`}
                     placeholder="March 2023"
                     value={incident.date}
                     onChange={(e) => updateIncident(index, 'date', e.target.value)}
                   />
+                  {errors[`incident${index}Date`] && (
+                    <p className="text-red-600 text-sm mt-1">{errors[`incident${index}Date`]}</p>
+                  )}
                 </div>
 
                 <div>
@@ -901,12 +744,20 @@ All documents formatted for Microsoft Word editing.`,
                     Describe the Incident {index === 0 && '*'}
                   </label>
                   <textarea
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+                    className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                      errors[`incident${index}Description`] ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                    }`}
                     rows={5}
                     placeholder="Example: In March 2023, I submitted the lowest qualified bid ($487,000) for State Highway Project SR-125. Despite being properly bonded and meeting all technical requirements, the contract was awarded to a firm with a bid $52,000 higher..."
                     value={incident.description}
                     onChange={(e) => updateIncident(index, 'description', e.target.value)}
                   />
+                  {errors[`incident${index}Description`] && (
+                    <p className="text-red-600 text-sm mt-1">{errors[`incident${index}Description`]}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {incident.description.length} characters {incident.description.length < 50 && '(minimum 50)'}
+                  </p>
                 </div>
 
                 <div>
@@ -954,12 +805,20 @@ All documents formatted for Microsoft Word editing.`,
               Access to Capital and Financing *
             </label>
             <textarea
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                errors.financingBarriers ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+              }`}
               rows={5}
               placeholder="Example: In 2024, I applied for a $500,000 line of credit at three regional banks. Despite maintaining 18 consecutive months of positive cash flow, I was offered interest rates ranging from 12-14%. Industry colleagues with comparable financials reported securing similar financing at 7-9% rates..."
               value={formData.financingBarriers}
               onChange={(e) => updateFormData('financingBarriers', e.target.value)}
             />
+            {errors.financingBarriers && (
+              <p className="text-red-600 text-sm mt-1">{errors.financingBarriers}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              {formData.financingBarriers.length} characters {formData.financingBarriers.length < 50 && '(minimum 50)'}
+            </p>
           </div>
 
           <div>
@@ -993,12 +852,20 @@ All documents formatted for Microsoft Word editing.`,
               Contract Losses and Bid Disparities *
             </label>
             <textarea
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
+                errors.contractLosses ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+              }`}
               rows={5}
               placeholder="Example: Over the past 24 months, I have submitted 47 competitive bids on federally-funded transportation projects. Despite being the low bidder on 12 occasions, I was awarded only 2 contracts..."
               value={formData.contractLosses}
               onChange={(e) => updateFormData('contractLosses', e.target.value)}
             />
+            {errors.contractLosses && (
+              <p className="text-red-600 text-sm mt-1">{errors.contractLosses}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              {formData.contractLosses.length} characters {formData.contractLosses.length < 50 && '(minimum 50)'}
+            </p>
           </div>
 
           <div>
@@ -1058,7 +925,7 @@ All documents formatted for Microsoft Word editing.`,
           <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
             <h4 className="font-bold text-blue-900 mb-3">What Happens Next:</h4>
             <div className="space-y-2 text-sm text-blue-900">
-              <p>✓ We'll generate your complete application package</p>
+              <p>✓ We'll generate your complete application package using AI</p>
               <p>✓ You'll receive a professional narrative statement</p>
               <p>✓ Plus a formal cover letter addressed to your UCP</p>
               <p>✓ Plus a comprehensive evidence checklist</p>
@@ -1080,20 +947,38 @@ All documents formatted for Microsoft Word editing.`,
               <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white p-8 rounded-xl shadow-lg">
                 <h3 className="text-2xl font-bold mb-3">Ready to Generate Your Application</h3>
                 <p className="text-green-50 mb-4 leading-relaxed">
-                  You've completed all required sections. We'll now transform your responses into a professional, 
+                  You've completed all required sections. Our AI will now transform your responses into a professional, 
                   compliant DBE recertification application package.
                 </p>
                 <div className="bg-white/20 backdrop-blur p-4 rounded-lg">
                   <p className="text-sm text-white font-semibold mb-2">Your package will include:</p>
                   <ul className="text-sm text-green-50 space-y-1">
                     <li>✓ Professional cover letter addressed to your UCP</li>
-                    <li>✓ Complete narrative statement of disadvantage</li>
+                    <li>✓ Complete AI-enhanced narrative statement of disadvantage</li>
                     <li>✓ Supporting documentation checklist</li>
                     <li>✓ Pre-submission review summary</li>
                     <li>✓ All as Word documents for easy editing</li>
                   </ul>
                 </div>
               </div>
+
+              {error && (
+                <div className="bg-red-50 border-2 border-red-300 p-6 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="text-red-600 flex-shrink-0 mt-1" size={24} />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-red-900 mb-2">Generation Failed</h4>
+                      <p className="text-sm text-red-800 mb-3">{error}</p>
+                      <button
+                        onClick={generateDocuments}
+                        className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={generateDocuments}
@@ -1115,9 +1000,13 @@ All documents formatted for Microsoft Word editing.`,
 
               {isGenerating && (
                 <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
-                  <p className="text-sm text-blue-900 text-center">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    <p className="text-sm text-blue-900 font-semibold">{generationProgress}</p>
+                  </div>
+                  <p className="text-xs text-blue-700">
                     Our AI is analyzing your responses and crafting compelling narratives that meet 
-                    regulatory requirements. This typically takes 20-30 seconds...
+                    regulatory requirements. This typically takes 30-60 seconds...
                   </p>
                 </div>
               )}
@@ -1130,8 +1019,8 @@ All documents formatted for Microsoft Word editing.`,
                   <div>
                     <h3 className="font-bold text-lg text-green-900 mb-2">Documents Generated Successfully!</h3>
                     <p className="text-sm text-green-800">
-                      Your professional DBE application package has been created. Review the preview below, 
-                      then unlock the complete package for download.
+                      Your professional DBE application package has been created by AI. Review the preview below, 
+                      then complete payment to unlock downloads.
                     </p>
                   </div>
                 </div>
@@ -1149,113 +1038,86 @@ All documents formatted for Microsoft Word editing.`,
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-8 rounded-xl shadow-xl">
-                <div className="flex items-start gap-4">
-                  <Lock className="flex-shrink-0" size={32} />
-                  <div className="flex-1">
-                    <h4 className="font-bold text-2xl mb-2">Unlock Complete Package</h4>
-                    <p className="text-amber-50 mb-4">
-                      This preview shows just a portion of your narrative. The complete package includes 4 professional 
-                      documents totaling 8-12 pages, formatted as Word files ready for editing.
-                    </p>
-                    <div className="bg-white/20 backdrop-blur p-4 rounded-lg mb-4">
-                      <p className="font-bold mb-2">Complete Package Includes:</p>
-                      <ul className="text-sm space-y-1">
-                        <li>✓ Full narrative statement (4-6 pages)</li>
-                        <li>✓ Professional cover letter</li>
-                        <li>✓ Complete documentation checklist</li>
-                        <li>✓ Pre-submission review summary</li>
-                        <li>✓ Downloadable Word documents (.doc)</li>
-                        <li>✓ Fully editable in Microsoft Word</li>
-                        <li>✓ Instant download - no waiting</li>
-                      </ul>
-                    </div>
-
-                    {!showLicenseInput && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <p className="text-3xl font-bold">$149</p>
-                            <p className="text-sm text-amber-100">One-time payment • Instant access</p>
-                          </div>
-                          <button
-                            onClick={handlePayment}
-                            className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105"
-                          >
-                            Pay for Download →
-                          </button>
-                        </div>
+              {!showCheckout ? (
+                <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-8 rounded-xl shadow-xl">
+                  <div className="flex items-start gap-4">
+                    <CreditCard className="flex-shrink-0" size={32} />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-2xl mb-2">Unlock Complete Package</h4>
+                      <p className="text-amber-50 mb-4">
+                        Complete your purchase to download all 4 AI-enhanced professional documents totaling 8-12 pages.
+                      </p>
+                      <div className="bg-white/20 backdrop-blur p-4 rounded-lg mb-6">
+                        <p className="font-bold mb-2">Complete Package Includes:</p>
+                        <ul className="text-sm space-y-1">
+                          <li>✓ Full AI-enhanced narrative statement (4-6 pages)</li>
+                          <li>✓ Professional cover letter</li>
+                          <li>✓ Complete documentation checklist</li>
+                          <li>✓ Pre-submission review summary</li>
+                          <li>✓ Downloadable Word documents (.doc)</li>
+                          <li>✓ Fully editable in Microsoft Word</li>
+                        </ul>
                       </div>
-                    )}
 
-                    {showLicenseInput && (
-                      <div className="bg-white/10 backdrop-blur rounded-lg p-6 space-y-4">
+                      <div className="flex items-center justify-between bg-white/10 backdrop-blur rounded-lg p-4 mb-4">
                         <div>
-                          <label className="block text-white font-semibold mb-2">
-                            {verifying ? '🔄 Verifying your license...' : '✓ Payment Complete? Enter Your License Key:'}
-                          </label>
-                          <p className="text-amber-100 text-sm mb-3">
-                            {verifying 
-                              ? 'Please wait while we verify your purchase with Gumroad...'
-                              : 'Check your email from Gumroad for your license key'
-                            }
-                          </p>
-                          <input
-                            type="text"
-                            placeholder="XXXX-XXXX-XXXX-XXXX"
-                            value={licenseKey}
-                            onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
-                            className="w-full p-3 rounded-lg text-gray-900 font-mono text-center text-lg mb-2"
-                            maxLength={50}
-                            disabled={verifying}
-                          />
-                          {licenseError && (
-                            <div className="bg-red-500/20 border border-red-300 rounded-lg p-3 mb-2">
-                              <p className="text-white text-sm">{licenseError}</p>
-                            </div>
-                          )}
-                          <button
-                            onClick={() => verifyLicense()}
-                            disabled={!licenseKey.trim() || verifying}
-                            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2"
-                          >
-                            {verifying ? (
-                              <>
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                Verifying License...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle size={20} />
-                                Verify & Unlock Documents
-                              </>
-                            )}
-                          </button>
+                          <p className="text-3xl font-bold">$149</p>
+                          <p className="text-sm text-amber-100">One-time payment • Instant access</p>
                         </div>
-                        
-                        {!verifying && (
-                          <button
-                            onClick={() => setShowLicenseInput(false)}
-                            className="w-full text-white/80 hover:text-white text-sm underline"
-                          >
-                            ← Back to purchase
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setShowCheckout(true)}
+                          className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105"
+                        >
+                          Continue to Payment →
+                        </button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white border-2 border-blue-300 rounded-xl p-6 shadow-xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-bold text-xl text-gray-900">Complete Your Purchase</h4>
+                    <button
+                      onClick={() => setShowCheckout(false)}
+                      className="text-gray-500 hover:text-gray-700 text-sm"
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-blue-900">
+                      <strong>Secure checkout powered by Lemon Squeezy.</strong> Your documents will unlock automatically upon successful payment.
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg overflow-hidden border-2 border-gray-200 bg-white">
+                    <iframe
+                      src={checkoutUrl}
+                      className="w-full h-[600px]"
+                      title="Lemon Squeezy Checkout"
+                      style={{ border: 'none' }}
+                    />
+                  </div>
+
+                  <div className="mt-4 text-center">
+                    <p className="text-xs text-gray-500">
+                      🔒 Secure payment processing • Your payment information is never stored on our servers
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
                   <p className="text-sm text-blue-900">
-                    <strong>💰 Compare:</strong> Professional consultant fees for narrative preparation: $1,500-3,000
+                    <strong>💰 Compare:</strong> Professional consultant fees: $1,500-3,000
                   </p>
                 </div>
                 <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
                   <p className="text-sm text-green-900">
-                    <strong>✓ Included:</strong> Full editing capability in Microsoft Word
+                    <strong>✓ Included:</strong> Full editing in Microsoft Word
                   </p>
                 </div>
               </div>
@@ -1268,7 +1130,7 @@ All documents formatted for Microsoft Word editing.`,
                   <div>
                     <h3 className="text-2xl font-bold mb-2">Payment Successful!</h3>
                     <p className="text-green-50">
-                      Your complete DBE application package is ready for download as Word documents.
+                      Your complete AI-enhanced DBE application package is ready for download as Word documents.
                     </p>
                   </div>
                 </div>
@@ -1278,7 +1140,7 @@ All documents formatted for Microsoft Word editing.`,
                 <div className="bg-white border-2 border-green-200 p-6 rounded-lg">
                   <FileText className="text-green-600 mb-3" size={32} />
                   <h4 className="font-bold mb-2">Narrative Statement</h4>
-                  <p className="text-sm text-gray-600 mb-4">Complete statement of disadvantage (4-6 pages)</p>
+                  <p className="text-sm text-gray-600 mb-4">AI-enhanced statement (4-6 pages)</p>
                   <button
                     onClick={() => downloadAsWord(
                       generatedDocs.narrative, 
@@ -1295,7 +1157,7 @@ All documents formatted for Microsoft Word editing.`,
                 <div className="bg-white border-2 border-blue-200 p-6 rounded-lg">
                   <FileText className="text-blue-600 mb-3" size={32} />
                   <h4 className="font-bold mb-2">Cover Letter</h4>
-                  <p className="text-sm text-gray-600 mb-4">Formal letter to your UCP</p>
+                  <p className="text-sm text-gray-600 mb-4">Professional letter to your UCP</p>
                   <button
                     onClick={() => downloadAsWord(
                       generatedDocs.coverLetter, 
@@ -1367,7 +1229,7 @@ All documents formatted for Microsoft Word editing.`,
               <div className="bg-green-50 border border-green-200 p-6 rounded-lg text-center">
                 <h4 className="font-bold text-green-900 mb-2">Good luck with your DBE recertification!</h4>
                 <p className="text-sm text-green-800">
-                  Your professionally prepared application gives you the best chance for approval under the new standards.
+                  Your AI-enhanced application gives you the best chance for approval under the new standards.
                 </p>
               </div>
             </>
@@ -1388,10 +1250,27 @@ All documents formatted for Microsoft Word editing.`,
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-1">DBE Narrative Pro</h1>
-              <p className="text-blue-200 text-sm">Professional DBE Recertification Documents</p>
+              <p className="text-blue-200 text-sm">AI-Enhanced DBE Recertification Documents</p>
             </div>
-            <div className="bg-amber-500 text-amber-900 px-4 py-2 rounded-lg font-bold">
-              Compliant 2025
+            <div className="flex items-center gap-3">
+              <div className="bg-amber-500 text-amber-900 px-4 py-2 rounded-lg font-bold">
+                Compliant 2025
+              </div>
+              {step > 0 && step < 5 && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Clear saved draft? Your progress will be lost.')) {
+                      clearDraft();
+                      window.location.reload();
+                    }
+                  }}
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 text-sm"
+                  title="Clear saved draft"
+                >
+                  <Trash2 size={16} />
+                  Clear Draft
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1458,7 +1337,10 @@ All documents formatted for Microsoft Word editing.`,
 
         <div className="flex justify-between items-center">
           <button
-            onClick={() => setStep(Math.max(0, step - 1))}
+            onClick={() => {
+              setStep(Math.max(0, step - 1));
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             disabled={step === 0}
             className="bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg border-2 border-gray-200 transition-all"
           >
@@ -1468,7 +1350,14 @@ All documents formatted for Microsoft Word editing.`,
           
           {step < steps.length - 1 && (
             <button
-              onClick={() => setStep(Math.min(steps.length - 1, step + 1))}
+              onClick={() => {
+                if (validateStep(step)) {
+                  setStep(Math.min(steps.length - 1, step + 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  alert('Please fill in all required fields before continuing.');
+                }
+              }}
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-6 rounded-lg flex items-center gap-2 shadow-lg transition-all transform hover:scale-105"
             >
               Continue
@@ -1481,12 +1370,12 @@ All documents formatted for Microsoft Word editing.`,
           <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
             <Shield className="text-blue-600 mx-auto mb-2" size={24} />
             <p className="text-xs font-semibold text-gray-700">Secure & Private</p>
-            <p className="text-xs text-gray-500">No data stored</p>
+            <p className="text-xs text-gray-500">Auto-saved locally</p>
           </div>
           <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
             <CheckCircle className="text-green-600 mx-auto mb-2" size={24} />
-            <p className="text-xs font-semibold text-gray-700">2025 Compliant</p>
-            <p className="text-xs text-gray-500">Current regulations</p>
+            <p className="text-xs font-semibold text-gray-700">AI-Powered</p>
+            <p className="text-xs text-gray-500">Professional quality</p>
           </div>
           <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
             <FileText className="text-amber-600 mx-auto mb-2" size={24} />
@@ -1496,7 +1385,7 @@ All documents formatted for Microsoft Word editing.`,
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>© 2025 DBE Narrative Pro • Helping DBEs navigate new certification requirements</p>
+          <p>© 2025 DBE Narrative Pro • AI-Enhanced DBE Certification Documents</p>
         </div>
       </div>
     </div>

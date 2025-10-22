@@ -1,25 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import HomePage from './HomePage';
 import DBENarrativePro from './DBENarrativePro';
 
 function App() {
   const [showApp, setShowApp] = useState(false);
-  const [redirectLicenseKey, setRedirectLicenseKey] = useState(null);
-
-  // Check for Gumroad redirect on mount
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const licenseKey = urlParams.get('license_key');
-    
-    if (licenseKey) {
-      // User was redirected from Gumroad after purchase
-      setRedirectLicenseKey(licenseKey);
-      setShowApp(true); // Automatically go to the app
-      
-      // Clean up URL (remove query parameters)
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
 
   if (showApp) {
     return (
@@ -31,7 +15,7 @@ function App() {
           >
             ← Back to Home
           </button>
-          <DBENarrativePro redirectLicenseKey={redirectLicenseKey} />
+          <DBENarrativePro />
         </div>
       </div>
     );
