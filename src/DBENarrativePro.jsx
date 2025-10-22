@@ -83,7 +83,7 @@ const DBENarrativePro = () => {
     checkForDraft();
   }, []);
 
-  // Check payment status and listen for payment events
+  // Load Lemon Squeezy script and handle payment events
   useEffect(() => {
     const checkPaidStatus = () => {
       try {
@@ -98,41 +98,67 @@ const DBENarrativePro = () => {
 
     checkPaidStatus();
 
-    // IMPROVED: Better payment verification
+    // Load Lemon Squeezy script
+    const script = document.createElement('script');
+    script.src = 'https://app.lemonsqueezy.com/js/lemon.js';
+    script.defer = true;
+    document.head.appendChild(script);
+
+    script.onload = () => {
+      console.log('✅ Lemon Squeezy script loaded');
+      // Initialize Lemon Squeezy
+      if (window.createLemonSqueezy) {
+        window.createLemonSqueezy();
+      }
+    };
+
+    // Listen for Lemon Squeezy payment events
     const handleLemonSqueezyEvent = (event) => {
       // Verify origin for security
-      if (!event.origin.includes('lemonsqueezy.com')) {
+      if (!event.origin || !event.origin.includes('lemonsqueezy.com')) {
         return;
       }
 
-      if (event.data && typeof event.data === 'string') {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.event === 'Checkout.Success') {
-            console.log('Payment successful!', data);
-            setIsPaid(true);
-            setShowCheckout(false);
-            
-            try {
-              localStorage.setItem('dbe_narrative_paid', 'true');
-              localStorage.setItem('dbe_narrative_payment_date', new Date().toISOString());
-              // Store order ID if available
-              if (data.data?.order_id) {
-                localStorage.setItem('dbe_order_id', data.data.order_id);
-              }
-            } catch (error) {
-              console.error('Error storing payment status:', error);
-            }
-            
-            setTimeout(() => {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }, 100);
-            
-            alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
+      console.log('📨 Received message from Lemon Squeezy:', event);
+
+      if (event.data) {
+        let data;
+        
+        // Handle both string and object data
+        if (typeof event.data === 'string') {
+          try {
+            data = JSON.parse(event.data);
+          } catch (e) {
+            console.log('Not JSON data:', event.data);
+            return;
           }
-        } catch (e) {
-          console.error('Error parsing message:', e);
+        } else {
+          data = event.data;
+        }
+        
+        console.log('📦 Parsed data:', data);
+        
+        // Check for payment success
+        if (data.event === 'Checkout.Success' || data === 'Checkout.Success') {
+          console.log('🎉 Payment successful!', data);
+          setIsPaid(true);
+          setShowCheckout(false);
+          
+          try {
+            localStorage.setItem('dbe_narrative_paid', 'true');
+            localStorage.setItem('dbe_narrative_payment_date', new Date().toISOString());
+            if (data.data?.order_id) {
+              localStorage.setItem('dbe_order_id', data.data.order_id);
+            }
+          } catch (error) {
+            console.error('Error storing payment status:', error);
+          }
+          
+          setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }, 100);
+          
+          alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
         }
       }
     };
@@ -141,6 +167,9 @@ const DBENarrativePro = () => {
 
     return () => {
       window.removeEventListener('message', handleLemonSqueezyEvent);
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
     };
   }, []);
 
@@ -417,7 +446,8 @@ ${rtfContent}
     alert('All documents downloaded successfully! Open with Microsoft Word to edit.');
   };
 
-  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/checkout/buy/${LEMON_SQUEEZY_VARIANT_ID}?embed=1&media=0&logo=0&desc=0&discount=0&dark=1`;
+  // TODO: Replace with your actual subdomain and variant ID
+  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/checkout/buy/${LEMON_SQUEEZY_VARIANT_ID}?embed=1`;
 
   const steps = [
     {
@@ -1064,48 +1094,35 @@ ${rtfContent}
                           <p className="text-3xl font-bold">$149</p>
                           <p className="text-sm text-amber-100">One-time payment • Instant access</p>
                         </div>
-                        <button
-                          onClick={() => setShowCheckout(true)}
-                          className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105"
+                        <a
+                          href={checkoutUrl}
+                          className="lemonsqueezy-button bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105"
                         >
-                          Continue to Payment →
-                        </button>
+                          Complete Purchase →
+                        </a>
                       </div>
+                      
+                      <p className="text-xs text-amber-100 text-center">
+                        🔒 Secure checkout powered by Lemon Squeezy • Documents unlock automatically
+                      </p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-white border-2 border-blue-300 rounded-xl p-6 shadow-xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-bold text-xl text-gray-900">Complete Your Purchase</h4>
-                    <button
-                      onClick={() => setShowCheckout(false)}
-                      className="text-gray-500 hover:text-gray-700 text-sm"
-                    >
-                      ← Back
-                    </button>
+                <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg text-center">
+                  <div className="flex items-center justify-center gap-3 mb-3">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <p className="text-blue-900 font-semibold">Waiting for payment confirmation...</p>
                   </div>
-                  
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-blue-900">
-                      <strong>Secure checkout powered by Lemon Squeezy.</strong> Your documents will unlock automatically upon successful payment.
-                    </p>
-                  </div>
-
-                  <div className="rounded-lg overflow-hidden border-2 border-gray-200 bg-white">
-                    <iframe
-                      src={checkoutUrl}
-                      className="w-full h-[600px]"
-                      title="Lemon Squeezy Checkout"
-                      style={{ border: 'none' }}
-                    />
-                  </div>
-
-                  <div className="mt-4 text-center">
-                    <p className="text-xs text-gray-500">
-                      🔒 Secure payment processing • Your payment information is never stored on our servers
-                    </p>
-                  </div>
+                  <p className="text-sm text-blue-700 mb-4">
+                    Complete your payment in the checkout window. This page will automatically unlock when payment is confirmed.
+                  </p>
+                  <button
+                    onClick={() => setShowCheckout(false)}
+                    className="text-blue-600 hover:text-blue-700 text-sm underline"
+                  >
+                    ← Back
+                  </button>
                 </div>
               )}
 
