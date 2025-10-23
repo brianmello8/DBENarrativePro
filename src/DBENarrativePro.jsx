@@ -36,7 +36,7 @@ const DBENarrativePro = () => {
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
-  const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1?";
+  const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1";
   const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4; // TODO: Replace with your GA4 Measurement ID"
   // ============================================
 
@@ -624,7 +624,7 @@ ${rtfContent}
   };
 
   // TODO: Replace with your actual subdomain and variant ID
- const checkoutUrl = `${LEMON_SQUEEZY_CHECKOUT_URL}?embed=1`;
+ const checkoutUrl = LEMON_SQUEEZY_CHECKOUT_URL;
 
   const steps = [
     {
