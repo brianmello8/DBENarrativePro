@@ -1,0 +1,56 @@
+# robots.txt for DBE Narrative Pro
+# https://dbenarrativepro.com/robots.txt
+
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow sensitive areas (if any)
+# Disallow: /api/
+# Disallow: /admin/
+# Disallow: /checkout/
+
+# Sitemap location
+Sitemap: https://dbenarrativepro.com/sitemap.xml
+
+# Crawl delay (optional, adjust as needed)
+# Crawl-delay: 10
+
+# Specific bot directives
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 5
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 5
+
+# Block bad bots (optional)
+User-agent: AhrefsBot
+Crawl-delay: 30
+
+User-agent: SemrushBot
+Crawl-delay: 30
+
+# Archive bots
+User-agent: ia_archiver
+Allow: /
+
+# Social media bots (for card previews)
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# Note: Update this file based on your actual site structure
+# Disallow paths that should not be indexed (user data, private pages, etc.)

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, FileText, AlertCircle, CheckCircle, ArrowRight, Calendar, Scale, BookOpen, Users, TrendingUp, Award, ChevronDown, ChevronUp } from 'lucide-react';
 import { trackEvent, trackPageView } from './Analytics';
 
-const DBEHomePage = ({ onStartApp }) => {
+const DBEHomePage = ({ onStartApp, onNavigateToFAQ }) => {
   const [expandedFaq, setExpandedFaq] = useState(null);
 
   // Track homepage view
@@ -38,6 +38,15 @@ const DBEHomePage = ({ onStartApp }) => {
       faq_index: index
     });
     setExpandedFaq(expandedFaq === index ? null : index);
+  };
+
+  const handleViewAllFAQs = () => {
+    trackEvent('view_all_faqs_clicked', {
+      location: 'homepage_faq_section'
+    });
+    if (onNavigateToFAQ) {
+      onNavigateToFAQ();
+    }
   };
 
   const handleNewsletterSubmit = (e) => {
@@ -78,7 +87,7 @@ const DBEHomePage = ({ onStartApp }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Shield className="text-blue-400" size={36} />
-              <span className="text-2xl font-bold">DBE Narrative Pro</span>
+              <h1 className="text-2xl font-bold">DBE Narrative Pro</h1>
             </div>
             <div className="bg-amber-500 text-amber-900 px-4 py-2 rounded-lg font-bold text-sm">
               2025 Compliant
@@ -94,9 +103,9 @@ const DBEHomePage = ({ onStartApp }) => {
               <div className="inline-block bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold mb-6">
                 URGENT: New Requirements Effective October 2025
               </div>
-              <h1 className="text-5xl font-bold mb-6 leading-tight">
+              <h2 className="text-5xl font-bold mb-6 leading-tight">
                 Navigate New DBE Certification Requirements With Confidence
-              </h1>
+              </h2>
               <p className="text-xl text-blue-100 mb-8 leading-relaxed">
                 The DOT has eliminated presumptions of disadvantage. Generate professional, 
                 compliant narratives in minutes—not weeks—for just $149.
@@ -138,7 +147,7 @@ const DBEHomePage = ({ onStartApp }) => {
                       <FileText className="text-slate-900" size={24} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-lg mb-1">Professional Documents</h4>
+                      <h3 className="font-bold text-lg mb-1">Professional Documents</h3>
                       <p className="text-blue-200 text-sm">Complete narrative, cover letter, and checklists</p>
                     </div>
                   </div>
@@ -147,7 +156,7 @@ const DBEHomePage = ({ onStartApp }) => {
                       <Shield className="text-white" size={24} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-lg mb-1">Regulation Compliant</h4>
+                      <h3 className="font-bold text-lg mb-1">Regulation Compliant</h3>
                       <p className="text-blue-200 text-sm">Meets all 49 CFR Part 26 requirements</p>
                     </div>
                   </div>
@@ -156,7 +165,7 @@ const DBEHomePage = ({ onStartApp }) => {
                       <TrendingUp className="text-white" size={24} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-lg mb-1">Save Time & Money</h4>
+                      <h3 className="font-bold text-lg mb-1">Save Time & Money</h3>
                       <p className="text-blue-200 text-sm">$149 vs $1,500-3,000 consultant fees</p>
                     </div>
                   </div>
@@ -173,14 +182,14 @@ const DBEHomePage = ({ onStartApp }) => {
           <div className="flex items-start gap-4">
             <AlertCircle className="text-red-600 flex-shrink-0 mt-1" size={32} />
             <div>
-              <h3 className="text-2xl font-bold text-red-900 mb-3">Critical Regulatory Change</h3>
+              <h2 className="text-2xl font-bold text-red-900 mb-3">Critical Regulatory Change</h2>
               <p className="text-red-800 text-lg leading-relaxed mb-4">
                 On <strong>October 16, 2025</strong>, the U.S. Department of Transportation implemented sweeping 
                 changes to DBE certification requirements under 49 CFR Part 26. Race and gender-based presumptions 
                 of disadvantage have been eliminated nationwide.
               </p>
               <div className="bg-white border-2 border-red-200 rounded-lg p-6">
-                <h4 className="font-bold text-red-900 mb-3">What This Means for Your Business:</h4>
+                <h3 className="font-bold text-red-900 mb-3">What This Means for Your Business:</h3>
                 <ul className="space-y-2 text-red-800">
                   <li className="flex items-start gap-2">
                     <span className="text-red-600 font-bold">•</span>
@@ -293,31 +302,31 @@ const DBEHomePage = ({ onStartApp }) => {
               <Scale className="text-blue-600" size={32} />
               Legal Citation: 49 CFR Part 26 (Amended October 2025)
             </h3>
-              <div className="bg-gray-50 border-l-4 border-blue-600 p-6 rounded-r-lg">
-                <p className="text-gray-800 leading-relaxed mb-4">
-                  <strong>Official Regulatory Text:</strong> "Effective October 16, 2025, certification of disadvantaged 
-                  business enterprises shall require individualized determination of social and economic disadvantage. 
-                  No presumption of disadvantage shall be made based solely on membership in a particular racial, 
-                  ethnic, or gender group."
+            <div className="bg-gray-50 border-l-4 border-blue-600 p-6 rounded-r-lg">
+              <p className="text-gray-800 leading-relaxed mb-4">
+                <strong>Official Regulatory Text:</strong> "Effective October 16, 2025, certification of disadvantaged 
+                business enterprises shall require individualized determination of social and economic disadvantage. 
+                No presumption of disadvantage shall be made based solely on membership in a particular racial, 
+                ethnic, or gender group."
+              </p>
+              <div className="flex items-start gap-3 mb-4">
+                <BookOpen className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                <p className="text-gray-700 text-sm">
+                  <strong>Source:</strong> U.S. Department of Transportation, Final Rule FR-2025-19460, Federal Register Vol. 90, No. 192
                 </p>
-                <div className="flex items-start gap-3 mb-4">
-                  <BookOpen className="text-blue-600 flex-shrink-0 mt-1" size={20} />
-                  <p className="text-gray-700 text-sm">
-                    <strong>Source:</strong> U.S. Department of Transportation, Final Rule FR-2025-19460, Federal Register Vol. 90, No. 192
-                  </p>
-                </div>
+              </div>
 
-                <a
-                  href="https://www.federalregister.gov/documents/2025/10/03/2025-19460/disadvantaged-business-enterprise-program-and-disadvantaged-business-enterprise-in-airport"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackEvent('official_ruling_clicked')}
-                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all"
-                >
-                  <Scale size={20} />
-                  Read Full Official Ruling
-                  <ArrowRight size={16} />
-                </a>
+              <a
+                href="https://www.federalregister.gov/documents/2025/10/03/2025-19460/disadvantaged-business-enterprise-program-and-disadvantaged-business-enterprise-in-airport"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackEvent('official_ruling_clicked')}
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all"
+              >
+                <Scale size={20} />
+                Read Full Official Ruling
+                <ArrowRight size={16} />
+              </a>
             </div>
           </div>
         </div>
@@ -483,6 +492,21 @@ const DBEHomePage = ({ onStartApp }) => {
                 )}
               </div>
             ))}
+          </div>
+
+          {/* View All FAQs Button */}
+          <div className="mt-8 text-center">
+            <button
+              onClick={handleViewAllFAQs}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl flex items-center justify-center gap-3 mx-auto transition-all transform hover:scale-105 shadow-lg"
+            >
+              <BookOpen size={24} />
+              View All FAQs & Get More Answers
+              <ArrowRight size={20} />
+            </button>
+            <p className="mt-4 text-gray-600">
+              Have more questions? Check our comprehensive FAQ page for detailed answers.
+            </p>
           </div>
         </div>
       </div>
