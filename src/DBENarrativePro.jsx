@@ -622,7 +622,7 @@ ${rtfContent}
   };
 
   // TODO: Replace with your actual subdomain and variant ID
-  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/checkout/buy/${LEMON_SQUEEZY_VARIANT_ID}?embed=1`;
+  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/overlay${LEMON_SQUEEZY_VARIANT_ID}?embed=1`;
 
   const steps = [
     {
