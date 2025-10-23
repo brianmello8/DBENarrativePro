@@ -214,7 +214,7 @@ const DBENarrativePro = () => {
   useEffect(() => {
     // Load Lemon Squeezy script
     const script = document.createElement('script');
-    <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>;
+    script.src = "https://app.lemonsqueezy.com/js/lemon.js";
     script.defer = true;
     document.head.appendChild(script);
 
