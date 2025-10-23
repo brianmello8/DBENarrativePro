@@ -25,6 +25,7 @@ const DBENarrativePro = () => {
   const [generatedDocs, setGeneratedDocs] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [lsReady, setLsReady] = useState(false);
   
   // Validation and error states
   const [errors, setErrors] = useState({});
@@ -225,6 +226,7 @@ const DBENarrativePro = () => {
       if (window.createLemonSqueezy) {
         window.createLemonSqueezy();
       }
+   setLsReady(true); // Mark as ready
 
       // Setup official event handler
       if (window.LemonSqueezy) {
@@ -1268,14 +1270,21 @@ ${rtfContent}
                         <p className="text-3xl font-bold">$149</p>
                         <p className="text-sm text-amber-100">One-time payment • Instant access</p>
                       </div>
-                      <a
-                        href={checkoutUrl}
-                        onClick={() => trackPaymentInitiated()}
-                        className="lemonsqueezy-button bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105 no-underline"
-                      >
-                        Complete Purchase →
-                      </a>
-                    </div>
+                    <button
+  onClick={() => {
+    trackPaymentInitiated();
+    if (window.LemonSqueezy) {
+      window.LemonSqueezy.Url.Open(checkoutUrl);
+    } else {
+      alert('Payment system still loading, please try again in a moment.');
+    }
+  }}
+  disabled={!lsReady}
+  className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {lsReady ? 'Complete Purchase →' : 'Loading payment system...'}
+</button>
+</div> 
                     
                     <p className="text-xs text-amber-100 text-center">
                       🔒 Secure checkout powered by Lemon Squeezy • Documents unlock automatically
