@@ -35,7 +35,8 @@ const DBENarrativePro = () => {
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
-  const LEMON_SQUEEZY_VARIANT_ID = "1054409";
+  const LEMON_SQUEEZY_VARIANT_ID = "1052337";
+  const LEMON_SQUEEZY_PRODUCT_ID = "669645";
   const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4; // TODO: Replace with your GA4 Measurement ID"
   // ============================================
 
@@ -622,7 +623,7 @@ ${rtfContent}
   };
 
   // TODO: Replace with your actual subdomain and variant ID
-  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/checkout/buy/${LEMON_SQUEEZY_VARIANT_ID}?embed=1`;
+  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/checkout/buy/${LEMON_SQUEEZY_PRODUCT_ID}?variant=${LEMON_SQUEEZY_VARIANT_ID}&embed=1`
 
   const steps = [
     {
