@@ -152,7 +152,7 @@ const FAQPage = ({ onNavigateHome, onStartApp }) => {
         },
         {
           question: "What if I'm not satisfied with the generated documents?",
-          answer: "We stand behind our service with a 100% satisfaction guarantee. If you're not completely satisfied with your documents, contact us within 30 days for a full refund. Before requesting a refund, we encourage you to: review and edit the Word documents (they're fully customizable), contact our support team for guidance on improvements, or request a regeneration if you want to adjust your questionnaire responses. In practice, over 95% of users are satisfied with their first generation, and the remaining 5% are satisfied after minor edits."
+          answer: "We stand behind our service. If you're not completely satisfied with your documents, contact us within 30 days. Before requesting a refund, we encourage you to: review and edit the Word documents (they're fully customizable), contact our support team for guidance on improvements, or request a regeneration if you want to adjust your questionnaire responses. In practice, over 95% of users are satisfied with their first generation, and the remaining 5% are satisfied after minor edits. Because AI is expensive and we have to pay for every document generated we have a $45 AI Generation charge upon refund request."
         }
       ]
     },
@@ -176,7 +176,7 @@ const FAQPage = ({ onNavigateHome, onStartApp }) => {
         },
         {
           question: "Can I get a refund if I'm not satisfied?",
-          answer: "Yes, we offer a 30-day money-back guarantee. If you're not completely satisfied with your documents for any reason, contact us within 30 days of purchase for a full refund. We process refunds within 3-5 business days back to your original payment method. Our refund rate is less than 2%, as most users find the documents meet or exceed their expectations. We're confident in our service quality and stand behind it with this guarantee."
+          answer: "Yes, we stand behind our service. If you're not completely satisfied with your documents, contact us within 30 days. Before requesting a refund, we encourage you to: review and edit the Word documents (they're fully customizable), contact our support team for guidance on improvements, or request a regeneration if you want to adjust your questionnaire responses. In practice, over 95% of users are satisfied with their first generation, and the remaining 5% are satisfied after minor edits. Because AI is expensive and we have to pay for every document generated we have a $45 AI Generation charge upon refund request."
         },
         {
           question: "Do you offer discounts for multiple users or businesses?",
