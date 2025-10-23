@@ -5,9 +5,9 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
 const SEOHead = ({ 
-  title = "DBE Narrative Pro - AI-Powered DBE Certification Documents | 2025 Compliant",
-  description = "Generate professional DBE recertification narratives in minutes. AI-enhanced documents compliant with new 2025 DOT requirements. Create compelling disadvantage statements for $149. UCP-ready Word documents.",
-  keywords = "DBE certification, DBE narrative, disadvantaged business enterprise, DBE recertification, UCP application, DOT certification, minority business certification, DBE documents, 49 CFR Part 26, social disadvantage narrative, economic disadvantage statement",
+  title = "DBE Narrative Pro - AI-Powered DBE Certification Documents",
+  description = "DBE Recertification Support. AI-generated narrative & support documents to help you get recertified.",
+  keywords = "DBE certification, DBE certification support, disadvantaged business enterprise, DBE recertification, DBE Changes, DBE Program Changes, DBE Narrative Guidance, UCP application, DOT certification, minority business certification, DBE documents, 49 CFR Part 26, social disadvantage narrative, economic disadvantage statement",
   ogImage = "https://dbenarrativepro.com/og-image.png",
   ogUrl = "https://dbenarrativepro.com/",
   canonicalUrl = "https://dbenarrativepro.com/"
