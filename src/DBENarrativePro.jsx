@@ -35,7 +35,7 @@ const DBENarrativePro = () => {
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
-  const LEMON_SQUEEZY_VARIANT_ID = "1052337";
+  const LEMON_SQUEEZY_VARIANT_ID = "1054409";
   const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4; // TODO: Replace with your GA4 Measurement ID"
   // ============================================
 
@@ -214,7 +214,7 @@ const DBENarrativePro = () => {
   useEffect(() => {
     // Load Lemon Squeezy script
     const script = document.createElement('script');
-    script.src = 'https://app.lemonsqueezy.com/js/lemon.js';
+    <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>;
     script.defer = true;
     document.head.appendChild(script);
 
@@ -622,7 +622,7 @@ ${rtfContent}
   };
 
   // TODO: Replace with your actual subdomain and variant ID
-  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/overlay${LEMON_SQUEEZY_VARIANT_ID}?embed=1`;
+  const checkoutUrl = `https://dbenarrativepro.lemonsqueezy.com/checkout/buy/${LEMON_SQUEEZY_VARIANT_ID}?embed=1`;
 
   const steps = [
     {
