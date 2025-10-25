@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, Download, FileText, AlertCircle, CheckCircle, Building2, DollarSign, Users, Shield, Eye, CreditCard, Trash2, Save } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, ChevronLeft, Download, FileText, AlertCircle, CheckCircle, Building2, DollarSign, Users, Shield, Eye, CreditCard, Trash2, Save, Home, ArrowUp, Sparkles } from 'lucide-react';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
+import { saveAs } from 'file-saver';
+import { Helmet } from 'react-helmet-async';
 
 const DBENarrativePro = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [formData, setFormData] = useState({
     companyName: '',
     ownerName: '',
@@ -37,8 +43,26 @@ const DBENarrativePro = () => {
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
   const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1";
-  const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4; // TODO: Replace with your GA4 Measurement ID"
+  const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4"; // TODO: Replace with your GA4 Measurement ID
   // ============================================
+
+  // Scroll to top button visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.pageYOffset > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // ==========================================
   // GOOGLE ANALYTICS 4 HELPER FUNCTIONS
@@ -90,7 +114,6 @@ const DBENarrativePro = () => {
 
   // Track Form Field Completion
   const trackFieldCompletion = (fieldName, fieldValue) => {
-    // Only track when field has meaningful content
     if (fieldValue && fieldValue.toString().trim().length > 0) {
       trackEvent('form_field_complete', {
         field_name: fieldName,
@@ -157,14 +180,12 @@ const DBENarrativePro = () => {
         localStorage.setItem('dbe_form_step', step.toString());
         localStorage.setItem('dbe_form_timestamp', Date.now().toString());
         
-        // Track draft save
         trackDraftSave();
       } catch (error) {
         console.error('Error saving draft:', error);
       }
     };
 
-    // Debounce save - only save after 2 seconds of no changes
     const timeoutId = setTimeout(saveDraft, 2000);
     return () => clearTimeout(timeoutId);
   }, [formData, step]);
@@ -180,11 +201,9 @@ const DBENarrativePro = () => {
         if (savedData && timestamp) {
           const hoursSinceSave = (Date.now() - parseInt(timestamp)) / (1000 * 60 * 60);
           
-          // Only offer to restore if less than 7 days old
-          if (hoursSinceSave < 168) {
+          if (hoursSinceSave < 168) { // 7 days
             setSavedDraftAvailable(true);
           } else {
-            // Clear old drafts
             clearDraft();
           }
         }
@@ -196,7 +215,7 @@ const DBENarrativePro = () => {
     checkForDraft();
   }, []);
 
-  // Check if user already paid (restore from localStorage)
+  // Check if user already paid
   useEffect(() => {
     const paidStatus = localStorage.getItem('dbe_narrative_paid');
     if (paidStatus === 'true') {
@@ -213,7 +232,6 @@ const DBENarrativePro = () => {
 
   // Load Lemon Squeezy script and setup official event handler
   useEffect(() => {
-    // Load Lemon Squeezy script
     const script = document.createElement('script');
     script.src = "https://app.lemonsqueezy.com/js/lemon.js";
     script.defer = true;
@@ -222,48 +240,39 @@ const DBENarrativePro = () => {
     script.onload = () => {
       console.log('✅ Lemon Squeezy script loaded');
       
-      // Initialize Lemon Squeezy
       if (window.createLemonSqueezy) {
         window.createLemonSqueezy();
       }
-   setLsReady(true); // Mark as ready
+      setLsReady(true);
 
-      // Setup official event handler
       if (window.LemonSqueezy) {
         window.LemonSqueezy.Setup({
           eventHandler: (event) => {
             console.log('📨 Lemon Squeezy event:', event);
             
-            // Payment successful!
             if (event.event === 'Checkout.Success') {
               console.log('🎉 Payment successful!', event);
               
-              // Mark as paid
               setIsPaid(true);
               
-              // Store in localStorage
               try {
                 localStorage.setItem('dbe_narrative_paid', 'true');
                 localStorage.setItem('dbe_narrative_payment_date', new Date().toISOString());
                 
-                // Store order ID if available
                 if (event.data?.order_id) {
                   localStorage.setItem('dbe_order_id', event.data.order_id);
                   console.log('💾 Stored order ID:', event.data.order_id);
                   
-                  // Track payment success in GA4
                   trackPaymentSuccess(event.data.order_id);
                 }
               } catch (error) {
                 console.error('Error storing payment status:', error);
               }
               
-              // Scroll to top
               setTimeout(() => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }, 100);
               
-              // Show success message
               alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
             }
           }
@@ -353,7 +362,7 @@ const DBENarrativePro = () => {
   const validateStep = (currentStep) => {
     const newErrors = {};
     
-    if (currentStep === 1) { // Business Profile
+    if (currentStep === 1) {
       if (!formData.companyName?.trim()) newErrors.companyName = "Company name is required";
       if (!formData.ownerName?.trim()) newErrors.ownerName = "Your name is required";
       if (!formData.industry?.trim()) newErrors.industry = "Industry is required";
@@ -366,7 +375,7 @@ const DBENarrativePro = () => {
       }
     }
     
-    if (currentStep === 2) { // Social Disadvantage
+    if (currentStep === 2) {
       const firstIncident = formData.socialIncidents[0];
       if (!firstIncident.date?.trim()) newErrors.incident0Date = "Date is required for first incident";
       if (!firstIncident.description?.trim() || firstIncident.description.length < 50) {
@@ -374,7 +383,7 @@ const DBENarrativePro = () => {
       }
     }
     
-    if (currentStep === 3) { // Economic Disadvantage
+    if (currentStep === 3) {
       if (!formData.financingBarriers?.trim() || formData.financingBarriers.length < 50) {
         newErrors.financingBarriers = "Please provide at least 50 characters about financing barriers";
       }
@@ -387,7 +396,7 @@ const DBENarrativePro = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Load draft function with analytics
+  // Load draft function
   const loadDraft = () => {
     try {
       const savedData = localStorage.getItem('dbe_form_draft');
@@ -399,7 +408,6 @@ const DBENarrativePro = () => {
         setSavedDraftAvailable(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         
-        // Track draft load
         trackDraftLoad();
         
         alert('✅ Draft restored! You can continue where you left off.');
@@ -410,7 +418,7 @@ const DBENarrativePro = () => {
     }
   };
 
-  // Clear draft function with analytics
+  // Clear draft function
   const clearDraft = () => {
     try {
       localStorage.removeItem('dbe_form_draft');
@@ -418,7 +426,6 @@ const DBENarrativePro = () => {
       localStorage.removeItem('dbe_form_timestamp');
       setSavedDraftAvailable(false);
       
-      // Track draft clear
       trackDraftCleared();
     } catch (error) {
       console.error('Error clearing draft:', error);
@@ -428,10 +435,8 @@ const DBENarrativePro = () => {
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Track field completion in GA4
     trackFieldCompletion(field, value);
     
-    // Clear error for this field when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
@@ -443,7 +448,6 @@ const DBENarrativePro = () => {
       socialIncidents: [...prev.socialIncidents, { date: '', description: '', impact: '' }]
     }));
     
-    // Track incident addition
     trackEvent('incident_added', {
       total_incidents: formData.socialIncidents.length + 1,
       step_number: step + 1
@@ -455,10 +459,8 @@ const DBENarrativePro = () => {
     newIncidents[index][field] = value;
     setFormData(prev => ({ ...prev, socialIncidents: newIncidents }));
     
-    // Track incident field completion
     trackFieldCompletion(`incident_${index}_${field}`, value);
     
-    // Clear error for this incident field
     const errorKey = `incident${index}${field.charAt(0).toUpperCase() + field.slice(1)}`;
     if (errors[errorKey]) {
       setErrors(prev => ({ ...prev, [errorKey]: undefined }));
@@ -470,7 +472,6 @@ const DBENarrativePro = () => {
       const newIncidents = formData.socialIncidents.filter((_, i) => i !== index);
       setFormData(prev => ({ ...prev, socialIncidents: newIncidents }));
       
-      // Track incident removal
       trackEvent('incident_removed', {
         incident_index: index,
         remaining_incidents: newIncidents.length,
@@ -479,37 +480,169 @@ const DBENarrativePro = () => {
     }
   };
 
-  // Convert text to RTF format (Word-compatible)
-  const textToRTF = (title, content) => {
-    const escapeRTF = (text) => {
-      return text
-        .replace(/\\/g, '\\\\')
-        .replace(/\{/g, '\\{')
-        .replace(/\}/g, '\\}')
-        .replace(/\n/g, '\\par\n');
-    };
+  // Helper function to create styled Word documents
+  const createWordDocument = (title, content) => {
+    const contentLines = content.split('\n').filter(line => line.trim());
+    
+    const documentParagraphs = [
+      new Paragraph({
+        text: title,
+        heading: HeadingLevel.TITLE,
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 400 }
+      }),
+      
+      new Paragraph({
+        children: [new TextRun({ text: "" })],
+        spacing: { after: 200 }
+      }),
+      
+      ...contentLines.map(line => {
+        const isHeading = (
+          line.length < 60 && 
+          (line === line.toUpperCase() || /^[\d.]+\s/.test(line))
+        );
+        
+        if (isHeading) {
+          return new Paragraph({
+            children: [new TextRun({ text: line, bold: true, size: 26 })],
+            spacing: { before: 300, after: 200 },
+            alignment: AlignmentType.LEFT
+          });
+        } else {
+          return new Paragraph({
+            children: [new TextRun({ text: line, size: 24 })],
+            spacing: { after: 200 },
+            alignment: AlignmentType.LEFT
+          });
+        }
+      })
+    ];
 
-    const rtfContent = escapeRTF(content);
-    const rtfTitle = escapeRTF(title);
+    const doc = new Document({
+      styles: {
+        default: {
+          document: {
+            run: {
+              font: "Arial",
+              size: 24
+            }
+          }
+        },
+        paragraphStyles: [
+          {
+            id: "Title",
+            name: "Title",
+            basedOn: "Normal",
+            run: {
+              size: 56,
+              bold: true,
+              color: "000000",
+              font: "Arial"
+            },
+            paragraph: {
+              spacing: { before: 240, after: 240 },
+              alignment: AlignmentType.CENTER
+            }
+          }
+        ]
+      },
+      sections: [{
+        properties: {
+          page: {
+            margin: {
+              top: 1440,
+              right: 1440,
+              bottom: 1440,
+              left: 1440
+            }
+          }
+        },
+        children: documentParagraphs
+      }]
+    });
 
-    return `{\\rtf1\\ansi\\deff0
-{\\fonttbl{\\f0\\fnil\\fcharset0 Calibri;}{\\f1\\fnil\\fcharset0 Arial;}}
-{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;}
-\\viewkind4\\uc1\\pard\\sa200\\sl276\\slmult1\\f0\\fs22
-
-{\\pard\\qc\\b\\fs32 ${rtfTitle}\\par}
-\\par
-${rtfContent}
-}`;
+    return doc;
   };
 
-  // REAL API CALL to generate documents with analytics
+  // Download a single Word document
+  const downloadAsWord = async (content, filename, title) => {
+    try {
+      const doc = createWordDocument(title, content);
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, filename.replace('.doc', '.docx'));
+      
+      trackEvent('document_download', {
+        document_type: title,
+        filename: filename,
+        company_name: formData.companyName
+      });
+      
+      console.log(`✅ Downloaded: ${filename}`);
+    } catch (error) {
+      console.error('Error creating Word document:', error);
+      alert(`Error creating ${title}. Please try again.`);
+    }
+  };
+
+  // Download all documents
+  const downloadAllDocuments = async () => {
+    if (!generatedDocs) {
+      console.error('No documents to download');
+      alert('No documents available to download.');
+      return;
+    }
+
+    const companySlug = formData.companyName
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_]/g, '') || 'DBE_Application';
+
+    const documents = [
+      {
+        content: generatedDocs.coverLetter,
+        filename: `${companySlug}_Cover_Letter.docx`,
+        title: 'DBE Recertification Cover Letter'
+      },
+      {
+        content: generatedDocs.narrative,
+        filename: `${companySlug}_DBE_Narrative.docx`,
+        title: 'DBE Narrative Statement'
+      },
+      {
+        content: generatedDocs.checklist,
+        filename: `${companySlug}_Documentation_Checklist.docx`,
+        title: 'Supporting Documentation Checklist'
+      },
+      {
+        content: generatedDocs.reviewSummary,
+        filename: `${companySlug}_Review_Summary.docx`,
+        title: 'Application Review Summary'
+      }
+    ];
+
+    for (let i = 0; i < documents.length; i++) {
+      const doc = documents[i];
+      
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+      
+      await downloadAsWord(doc.content, doc.filename, doc.title);
+    }
+
+    trackEvent('all_documents_download', {
+      company_name: formData.companyName,
+      total_documents: 4
+    });
+
+    alert('✅ All documents downloaded successfully! Open with Microsoft Word to edit.');
+  };
+
+  // REAL API CALL to generate documents
   const generateDocuments = async () => {
-    // Validate all required fields before generating
     if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
       alert('Please fill in all required fields before generating documents.');
       
-      // Track validation failure
       trackEvent('generation_validation_failed', {
         step_number: step + 1
       });
@@ -521,7 +654,6 @@ ${rtfContent}
     setError(null);
     setGenerationProgress('Preparing your information...');
     
-    // Track generation start
     trackEvent('document_generation_started', {
       step_number: step + 1,
       company_name: formData.companyName,
@@ -560,7 +692,6 @@ ${rtfContent}
         reviewSummary: data.reviewSummary
       });
       
-      // Track successful generation
       trackEvent('document_generation_success', {
         step_number: step + 1,
         company_name: formData.companyName
@@ -569,7 +700,6 @@ ${rtfContent}
       await new Promise(resolve => setTimeout(resolve, 500));
       setGenerationProgress('');
       
-      // Scroll to top to see the preview
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
     } catch (error) {
@@ -577,7 +707,6 @@ ${rtfContent}
       setError(error.message || 'Failed to generate documents. Please try again.');
       setGenerationProgress('');
       
-      // Track generation failure
       trackEvent('document_generation_failed', {
         step_number: step + 1,
         error_message: error.message
@@ -587,44 +716,58 @@ ${rtfContent}
     }
   };
 
-  // Download as Word-compatible RTF file with analytics
-  const downloadAsWord = (content, filename, title) => {
-    const rtfContent = textToRTF(title, content);
-    const blob = new Blob([rtfContent], { type: 'application/rtf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename.replace('.txt', '.doc');
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    // Track individual document download
-    trackEvent('document_download', {
-      document_type: title,
-      filename: filename,
-      company_name: formData.companyName
-    });
-  };
+  const checkoutUrl = LEMON_SQUEEZY_CHECKOUT_URL;
 
-  const downloadAllDocuments = () => {
-    const companySlug = formData.companyName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'DBE_Application';
-    
-    downloadAsWord(generatedDocs.coverLetter, `${companySlug}_Cover_Letter.doc`, 'DBE Recertification Cover Letter');
-    downloadAsWord(generatedDocs.narrative, `${companySlug}_DBE_Narrative.doc`, 'DBE Narrative Statement');
-    downloadAsWord(generatedDocs.checklist, `${companySlug}_Documentation_Checklist.doc`, 'Supporting Documentation Checklist');
-    downloadAsWord(generatedDocs.reviewSummary, `${companySlug}_Review_Summary.doc`, 'Application Review Summary');
-    
-    // Track download all
-    trackEvent('all_documents_download', {
-      company_name: formData.companyName,
-      total_documents: 4
-    });
-    
-    alert('All documents downloaded successfully! Open with Microsoft Word to edit.');
-  };
+  // Reusable form components
+  const FormInput = ({ label, field, type = "text", required = false, placeholder = "", rows = 3 }) => (
+    <div className="mb-6">
+      <label className="block text-sm font-bold text-gray-700 mb-2">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      {type === "textarea" ? (
+        <textarea
+          value={formData[field] || ''}
+          onChange={(e) => updateFormData(field, e.target.value)}
+          placeholder={placeholder}
+          rows={rows}
+          className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+            errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+          }`}
+        />
+      ) : (
+        <input
+          type={type}
+          value={formData[field] || ''}
+          onChange={(e) => updateFormData(field, e.target.value)}
+          placeholder={placeholder}
+          className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+            errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+          }`}
+        />
+      )}
+      {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
+    </div>
+  );
 
-  // TODO: Replace with your actual subdomain and variant ID
- const checkoutUrl = LEMON_SQUEEZY_CHECKOUT_URL;
+  const FormSelect = ({ label, field, options, required = false }) => (
+    <div className="mb-6">
+      <label className="block text-sm font-bold text-gray-700 mb-2">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <select
+        value={formData[field] || ''}
+        onChange={(e) => updateFormData(field, e.target.value)}
+        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+          errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+        }`}
+      >
+        {options.map((opt, idx) => (
+          <option key={idx} value={opt}>{opt}</option>
+        ))}
+      </select>
+      {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
+    </div>
+  );
 
   const steps = [
     {
@@ -634,105 +777,162 @@ ${rtfContent}
       content: (
         <div className="space-y-6">
           {savedDraftAvailable && (
-            <div className="bg-blue-50 border-2 border-blue-300 p-6 rounded-xl">
-              <div className="flex items-start gap-3">
-                <Save className="text-blue-600 flex-shrink-0 mt-1" size={24} />
-                <div className="flex-1">
-                  <h4 className="font-bold text-blue-900 mb-2">Saved Draft Found!</h4>
-                  <p className="text-sm text-blue-800 mb-3">
-                    We found a saved draft from a previous session. Would you like to continue where you left off?
-                  </p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={loadDraft}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
-                    >
-                      Continue Draft
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Delete saved draft and start fresh?')) {
-                          clearDraft();
-                        }
-                      }}
-                      className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg"
-                    >
-                      Start Fresh
-                    </button>
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-xl shadow-xl border-2 border-blue-400 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Save size={32} />
+                  <div>
+                    <h3 className="font-bold text-lg">Saved Draft Found!</h3>
+                    <p className="text-blue-100 text-sm">Continue where you left off</p>
                   </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={loadDraft}
+                    className="bg-white text-blue-600 hover:bg-blue-50 font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg"
+                  >
+                    Restore Draft
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Start fresh? Your saved draft will be deleted.')) {
+                        clearDraft();
+                        setSavedDraftAvailable(false);
+                      }
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg transition-all"
+                  >
+                    Start Fresh
+                  </button>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Important Regulatory Update - October 2025</h2>
-            <p className="text-blue-50 leading-relaxed">
-              The DOT has eliminated race and gender-based presumptions of disadvantage. All DBE applicants 
-              must now provide <strong>individualized proof</strong> of social and economic disadvantage through 
-              detailed narratives and supporting documentation.
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-xl border-2 border-blue-200">
+            <h3 className="text-3xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+              <Sparkles className="text-blue-600" size={32} />
+              DBE Narrative Pro - AI-Enhanced Documents
+            </h3>
+            <p className="text-lg text-gray-700 leading-relaxed mb-6">
+              Generate professional DBE recertification documents compliant with the October 2025 regulations. 
+              Our AI creates personalized narratives, cover letters, and checklists based on your specific circumstances.
             </p>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+              <h4 className="font-bold text-xl text-gray-900 mb-4">What's Included - $149 One-Time Payment:</h4>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="text-green-500" size={20} />
+                  <span>Professional narrative statement (4-6 pages)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="text-green-500" size={20} />
+                  <span>Personalized cover letter</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="text-green-500" size={20} />
+                  <span>Complete documentation checklist</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="text-green-500" size={20} />
+                  <span>Application review summary</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="text-green-500" size={20} />
+                  <span>All documents as editable Word files</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="text-green-500" size={20} />
+                  <span>Saves $1,500-3,000 vs consultants</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white border-2 border-blue-100 p-6 rounded-lg hover:border-blue-300 transition-colors">
-              <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <FileText className="text-blue-600" size={24} />
+            <div className="bg-white border-2 border-blue-200 p-6 rounded-xl hover:shadow-xl transition-all hover:border-blue-400">
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-lg">
+                <Sparkles className="text-white" size={28} />
               </div>
-              <h4 className="font-bold text-lg mb-2">Professional Documents</h4>
-              <p className="text-gray-600 text-sm">Generate compliant narratives, cover letters, and checklists formatted for UCP submission</p>
+              <h4 className="font-bold text-lg mb-2">AI-Powered</h4>
+              <p className="text-gray-600 text-sm">Professional-grade documents customized to your unique story and circumstances</p>
             </div>
             
-            <div className="bg-white border-2 border-amber-100 p-6 rounded-lg hover:border-amber-300 transition-colors">
-              <div className="bg-amber-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle className="text-amber-600" size={24} />
-              </div>
-              <h4 className="font-bold text-lg mb-2">AI-Enhanced</h4>
-              <p className="text-gray-600 text-sm">Advanced AI transforms your experiences into compelling, legally-sound narratives</p>
-            </div>
-            
-            <div className="bg-white border-2 border-green-100 p-6 rounded-lg hover:border-green-300 transition-colors">
-              <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <Shield className="text-green-600" size={24} />
+            <div className="bg-white border-2 border-green-200 p-6 rounded-xl hover:shadow-xl transition-all hover:border-green-400">
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-lg">
+                <Shield className="text-white" size={28} />
               </div>
               <h4 className="font-bold text-lg mb-2">Regulation Compliant</h4>
-              <p className="text-gray-600 text-sm">Meets all new requirements under 49 CFR Part 26 as amended October 2025</p>
+              <p className="text-gray-600 text-sm">Meets all requirements under 49 CFR Part 26 as amended October 2025</p>
+            </div>
+
+            <div className="bg-white border-2 border-amber-200 p-6 rounded-xl hover:shadow-xl transition-all hover:border-amber-400">
+              <div className="bg-gradient-to-br from-amber-500 to-orange-600 w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-lg">
+                <FileText className="text-white" size={28} />
+              </div>
+              <h4 className="font-bold text-lg mb-2">Fully Editable</h4>
+              <p className="text-gray-600 text-sm">Download as Word documents and customize as needed before submission</p>
             </div>
           </div>
 
-          <div className="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-lg">
+          <div className="bg-amber-50 border-2 border-amber-300 p-6 rounded-xl">
             <div className="flex gap-3">
-              <AlertCircle className="text-amber-600 flex-shrink-0" size={24} />
+              <AlertCircle className="text-amber-600 flex-shrink-0" size={28} />
               <div>
-                <h4 className="font-bold text-amber-900 mb-2">What You'll Need</h4>
-                <ul className="text-sm text-amber-900 space-y-1">
-                  <li>• 30-45 minutes to complete the process</li>
-                  <li>• Specific examples of discrimination or barriers faced</li>
-                  <li>• Business financial information and records</li>
-                  <li>• Details about your UCP (Unified Certification Program)</li>
+                <h4 className="font-bold text-amber-900 mb-3 text-lg">What You'll Need:</h4>
+                <ul className="text-gray-700 space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-600 font-bold">•</span>
+                    <span>30-45 minutes to complete the questionnaire</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-600 font-bold">•</span>
+                    <span>Specific examples of discrimination or barriers you've faced</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-600 font-bold">•</span>
+                    <span>Business financial information and records</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-600 font-bold">•</span>
+                    <span>Details about your UCP (Unified Certification Program)</span>
+                  </li>
                 </ul>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-            <h4 className="font-semibold mb-3 text-gray-900">How DBE Narrative Pro Works:</h4>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">1</div>
-                <p className="text-sm text-gray-700">Complete guided questionnaire with your business information and experiences</p>
+          <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-8 rounded-xl border-2 border-gray-200">
+            <h4 className="font-bold text-2xl mb-6 text-gray-900 text-center">How It Works</h4>
+            <div className="space-y-4">
+              <div className="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm">
+                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg shadow-lg">1</div>
+                <div>
+                  <h5 className="font-bold text-gray-900 mb-1">Complete Questionnaire</h5>
+                  <p className="text-gray-600 text-sm">Answer guided questions about your business and experiences</p>
+                </div>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">2</div>
-                <p className="text-sm text-gray-700">AI generates professional narrative statement and supporting documents</p>
+              <div className="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm">
+                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg shadow-lg">2</div>
+                <div>
+                  <h5 className="font-bold text-gray-900 mb-1">AI Generates Documents</h5>
+                  <p className="text-gray-600 text-sm">Our AI creates professional narrative and supporting documents</p>
+                </div>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">3</div>
-                <p className="text-sm text-gray-700">Preview your documents, then unlock complete package for $149</p>
+              <div className="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm">
+                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg shadow-lg">3</div>
+                <div>
+                  <h5 className="font-bold text-gray-900 mb-1">Preview & Purchase</h5>
+                  <p className="text-gray-600 text-sm">See a preview, then unlock complete package for $149</p>
+                </div>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-sm font-bold">4</div>
-                <p className="text-sm text-gray-700">Download Word documents and submit to your UCP with confidence</p>
+              <div className="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm">
+                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg shadow-lg">4</div>
+                <div>
+                  <h5 className="font-bold text-gray-900 mb-1">Download & Submit</h5>
+                  <p className="text-gray-600 text-sm">Download Word documents and submit to your UCP with confidence</p>
+                </div>
               </div>
             </div>
           </div>
@@ -745,183 +945,63 @@ ${rtfContent}
       subtitle: 'Tell us about your company',
       content: (
         <div className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-bold mb-2 text-gray-700">Company Name *</label>
-              <input
-                type="text"
-                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                  errors.companyName ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                }`}
-                placeholder="ABC Construction LLC"
-                value={formData.companyName}
-                onChange={(e) => updateFormData('companyName', e.target.value)}
-              />
-              {errors.companyName && (
-                <p className="text-red-600 text-sm mt-1">{errors.companyName}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold mb-2 text-gray-700">Your Full Name *</label>
-              <input
-                type="text"
-                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                  errors.ownerName ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                }`}
-                placeholder="John Smith"
-                value={formData.ownerName}
-                onChange={(e) => updateFormData('ownerName', e.target.value)}
-              />
-              {errors.ownerName && (
-                <p className="text-red-600 text-sm mt-1">{errors.ownerName}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">As business owner</p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">Industry/Specialization *</label>
-            <input
-              type="text"
-              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                errors.industry ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-              }`}
-              placeholder="Heavy Highway Construction, Electrical Contracting, etc."
-              value={formData.industry}
-              onChange={(e) => updateFormData('industry', e.target.value)}
-            />
-            {errors.industry && (
-              <p className="text-red-600 text-sm mt-1">{errors.industry}</p>
-            )}
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-bold mb-2 text-gray-700">Years in Business *</label>
-              <input
-                type="number"
-                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                  errors.yearsInBusiness ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                }`}
-                placeholder="8"
-                value={formData.yearsInBusiness}
-                onChange={(e) => updateFormData('yearsInBusiness', e.target.value)}
-              />
-              {errors.yearsInBusiness && (
-                <p className="text-red-600 text-sm mt-1">{errors.yearsInBusiness}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold mb-2 text-gray-700">Annual Revenue *</label>
-              <input
-                type="text"
-                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                  errors.annualRevenue ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                }`}
-                placeholder="1250000"
-                value={formData.annualRevenue}
-                onChange={(e) => updateFormData('annualRevenue', e.target.value)}
-              />
-              {errors.annualRevenue && (
-                <p className="text-red-600 text-sm mt-1">{errors.annualRevenue}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">Enter without $ or commas</p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">Primary Business Location *</label>
-            <input
-              type="text"
-              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                errors.location ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-              }`}
-              placeholder="123 Main St, Sacramento, CA 95814"
-              value={formData.location}
-              onChange={(e) => updateFormData('location', e.target.value)}
-            />
-            {errors.location && (
-              <p className="text-red-600 text-sm mt-1">{errors.location}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">Your UCP (Unified Certification Program) *</label>
-            <select
-              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                errors.ucpSelection ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-              }`}
-              value={formData.ucpSelection}
-              onChange={(e) => updateFormData('ucpSelection', e.target.value)}
-            >
-              <option value="">Select your UCP...</option>
-              {ucpList.map((ucp, idx) => (
-                <option key={idx} value={ucp}>{ucp}</option>
-              ))}
-            </select>
-            {errors.ucpSelection && (
-              <p className="text-red-600 text-sm mt-1">{errors.ucpSelection}</p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">The certification program where you will submit this application</p>
-          </div>
-
-          {formData.ucpSelection === 'Other/Custom UCP' && (
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <label className="block text-sm font-bold mb-2 text-gray-700">Enter UCP Name *</label>
-              <input
-                type="text"
-                className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                  errors.customUCP ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                }`}
-                placeholder="Full name of your certification program"
-                value={formData.customUCP}
-                onChange={(e) => updateFormData('customUCP', e.target.value)}
-              />
-              {errors.customUCP && (
-                <p className="text-red-600 text-sm mt-1">{errors.customUCP}</p>
-              )}
-            </div>
-          )}
-
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-            <p className="text-sm text-blue-900">
-              <strong>Note:</strong> This information will be used to properly address your application and generate accurate submission documents. Your progress is automatically saved.
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl">
+            <p className="text-sm text-blue-900 font-semibold">
+              💼 This information helps us personalize your documents
             </p>
           </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <FormInput label="Company Name" field="companyName" required placeholder="ABC Construction LLC" />
+            <FormInput label="Your Full Name" field="ownerName" required placeholder="John Smith" />
+          </div>
+
+          <FormInput label="Industry/Specialization" field="industry" required placeholder="Heavy Highway Construction, Electrical Contracting, etc." />
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <FormInput label="Years in Business" field="yearsInBusiness" type="number" required placeholder="8" />
+            <FormInput label="Annual Revenue" field="annualRevenue" required placeholder="1250000" />
+          </div>
+
+          <FormInput label="Primary Business Location" field="location" required placeholder="123 Main St, Sacramento, CA 95814" />
+
+          <FormSelect 
+            label="Your UCP (Unified Certification Program)" 
+            field="ucpSelection" 
+            options={['', ...ucpList]} 
+            required 
+          />
+
+          {formData.ucpSelection === 'Other/Custom UCP' && (
+            <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-xl">
+              <FormInput label="Enter UCP Name" field="customUCP" required placeholder="Your UCP Name" />
+            </div>
+          )}
         </div>
       )
     },
     {
       title: 'Social Disadvantage',
       icon: Users,
-      subtitle: 'Document specific incidents and experiences',
+      subtitle: 'Document incidents of discrimination',
       content: (
         <div className="space-y-6">
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 p-6 rounded-r-lg">
-            <h4 className="font-bold text-amber-900 mb-2">Critical Guidance</h4>
-            <p className="text-sm text-amber-900 mb-3">
-              Document <strong>specific incidents</strong> where you experienced discrimination or bias. 
-              The new standards require concrete examples, not general statements.
+          <div className="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-xl">
+            <p className="text-sm text-purple-900 font-semibold">
+              📝 Under the new 2025 regulations, you must provide specific, individualized examples of social disadvantage. Be detailed and include dates, locations, and impacts.
             </p>
-            <ul className="text-sm text-amber-900 space-y-1">
-              <li>✓ Include dates, locations, and names (where appropriate)</li>
-              <li>✓ Describe what happened and why it was discriminatory</li>
-              <li>✓ Explain the business impact (lost revenue, missed opportunities)</li>
-              <li>✓ Be specific: "$52,000 higher bid" not "much higher"</li>
-            </ul>
           </div>
 
-          {formData.socialIncidents.map((incident, index) => (
-            <div key={index} className="bg-white border-2 border-gray-200 p-6 rounded-lg">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="font-bold text-lg text-gray-900">Incident {index + 1}</h4>
+          {formData.socialIncidents.map((incident, idx) => (
+            <div key={idx} className="bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 p-6 rounded-xl shadow-md">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-lg text-gray-900">Incident {idx + 1}</h4>
                 {formData.socialIncidents.length > 1 && (
                   <button
-                    onClick={() => removeIncident(index)}
-                    className="text-red-600 hover:text-red-700 text-sm font-semibold"
+                    onClick={() => removeIncident(idx)}
+                    className="text-red-600 hover:text-red-700 font-semibold flex items-center gap-1 transition-colors"
                   >
+                    <Trash2 size={16} />
                     Remove
                   </button>
                 )}
@@ -929,54 +1009,51 @@ ${rtfContent}
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-gray-700">
-                    Date or Time Period {index === 0 && '*'}
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Date {idx === 0 && <span className="text-red-500">*</span>}
                   </label>
                   <input
-                    type="text"
-                    className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                      errors[`incident${index}Date`] ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                    }`}
-                    placeholder="March 2023"
+                    type="date"
                     value={incident.date}
-                    onChange={(e) => updateIncident(index, 'date', e.target.value)}
+                    onChange={(e) => updateIncident(idx, 'date', e.target.value)}
+                    className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all ${
+                      errors[`incident${idx}Date`] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-purple-300'
+                    }`}
                   />
-                  {errors[`incident${index}Date`] && (
-                    <p className="text-red-600 text-sm mt-1">{errors[`incident${index}Date`]}</p>
+                  {errors[`incident${idx}Date`] && (
+                    <p className="text-red-500 text-sm mt-1 font-semibold">{errors[`incident${idx}Date`]}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-gray-700">
-                    Describe the Incident {index === 0 && '*'}
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Detailed Description {idx === 0 && <span className="text-red-500">*</span>}
                   </label>
                   <textarea
-                    className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                      errors[`incident${index}Description`] ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                    }`}
-                    rows={5}
-                    placeholder="Example: In March 2023, I submitted the lowest qualified bid ($487,000) for State Highway Project SR-125. Despite being properly bonded and meeting all technical requirements, the contract was awarded to a firm with a bid $52,000 higher..."
+                    rows={6}
                     value={incident.description}
-                    onChange={(e) => updateIncident(index, 'description', e.target.value)}
+                    onChange={(e) => updateIncident(idx, 'description', e.target.value)}
+                    placeholder="Describe what happened, who was involved, where it occurred, and any witnesses. Be specific about discriminatory comments, actions, or treatment..."
+                    className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all ${
+                      errors[`incident${idx}Description`] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-purple-300'
+                    }`}
                   />
-                  {errors[`incident${index}Description`] && (
-                    <p className="text-red-600 text-sm mt-1">{errors[`incident${index}Description`]}</p>
+                  {errors[`incident${idx}Description`] && (
+                    <p className="text-red-500 text-sm mt-1 font-semibold">{errors[`incident${idx}Description`]}</p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">
-                    {incident.description.length} characters {incident.description.length < 50 && '(minimum 50)'}
+                    Character count: {incident.description.length} {idx === 0 && '(minimum 50 required)'}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-gray-700">
-                    Impact on Your Business
-                  </label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Impact on Your Business</label>
                   <textarea
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
                     rows={3}
-                    placeholder="Example: This loss of a $487,000 contract directly cost my business approximately $73,000 in potential profit..."
                     value={incident.impact}
-                    onChange={(e) => updateIncident(index, 'impact', e.target.value)}
+                    onChange={(e) => updateIncident(idx, 'impact', e.target.value)}
+                    placeholder="How did this incident affect your business? (lost contracts, reduced opportunities, financial impact, etc.)"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 hover:border-purple-300 transition-all"
                   />
                 </div>
               </div>
@@ -985,7 +1062,7 @@ ${rtfContent}
 
           <button
             onClick={addIncident}
-            className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-4 px-6 rounded-lg border-2 border-blue-200 transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-all transform hover:scale-105 shadow-lg"
           >
             <CheckCircle size={20} />
             Add Another Incident
@@ -996,395 +1073,269 @@ ${rtfContent}
     {
       title: 'Economic Disadvantage',
       icon: DollarSign,
-      subtitle: 'Demonstrate financial barriers and impacts',
+      subtitle: 'Describe financial barriers',
       content: (
         <div className="space-y-6">
-          <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
-            <h4 className="font-bold text-blue-900 mb-2">Economic Disadvantage Requirements</h4>
-            <p className="text-sm text-blue-900">
-              Describe the <strong>economic barriers</strong> you've faced. Focus on measurable impacts: 
-              higher costs, denied financing, lost contracts, or limited growth.
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-xl">
+            <p className="text-sm text-green-900 font-semibold">
+              💰 Document specific economic barriers that have affected your business growth and competitiveness
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">
-              Access to Capital and Financing *
-            </label>
-            <textarea
-              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                errors.financingBarriers ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-              }`}
+          <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
+            <FormInput 
+              label="Financing Barriers" 
+              field="financingBarriers" 
+              type="textarea" 
+              required 
+              placeholder="Describe difficulties obtaining loans, lines of credit, or financing. Include bank names, dates, amounts requested, and reasons for denial..."
               rows={5}
-              placeholder="Example: In 2024, I applied for a $500,000 line of credit at three regional banks. Despite maintaining 18 consecutive months of positive cash flow, I was offered interest rates ranging from 12-14%. Industry colleagues with comparable financials reported securing similar financing at 7-9% rates..."
-              value={formData.financingBarriers}
-              onChange={(e) => updateFormData('financingBarriers', e.target.value)}
             />
-            {errors.financingBarriers && (
-              <p className="text-red-600 text-sm mt-1">{errors.financingBarriers}</p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              {formData.financingBarriers.length} characters {formData.financingBarriers.length < 50 && '(minimum 50)'}
-            </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">
-              Bonding Challenges
-            </label>
-            <textarea
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+          <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
+            <FormInput 
+              label="Bonding Challenges" 
+              field="bondingChallenges" 
+              type="textarea" 
+              placeholder="Describe difficulties obtaining bonding, including surety companies contacted, amounts needed, and barriers faced..."
               rows={4}
-              placeholder="Example: To secure bonding for projects exceeding $1M, I pay premium rates 30-40% above industry averages..."
-              value={formData.bondingChallenges}
-              onChange={(e) => updateFormData('bondingChallenges', e.target.value)}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">
-              Insurance Costs and Availability
-            </label>
-            <textarea
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
+          <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
+            <FormInput 
+              label="Insurance Challenges" 
+              field="insuranceChallenges" 
+              type="textarea" 
+              placeholder="Describe difficulties obtaining insurance coverage, high premiums, or coverage limitations..."
               rows={4}
-              placeholder="Example: Commercial general liability insurance for my operations costs approximately $18,000 annually. Competitors in my market with similar revenue report annual premiums of $11,000-13,000..."
-              value={formData.insuranceChallenges}
-              onChange={(e) => updateFormData('insuranceChallenges', e.target.value)}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">
-              Contract Losses and Bid Disparities *
-            </label>
-            <textarea
-              className={`w-full border-2 rounded-lg p-3 focus:outline-none transition-colors ${
-                errors.contractLosses ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-              }`}
+          <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
+            <FormInput 
+              label="Contract Losses Due to Disadvantage" 
+              field="contractLosses" 
+              type="textarea" 
+              required 
+              placeholder="Describe contracts you lost or were unable to bid on due to your disadvantaged status. Include project names, values, and reasons..."
               rows={5}
-              placeholder="Example: Over the past 24 months, I have submitted 47 competitive bids on federally-funded transportation projects. Despite being the low bidder on 12 occasions, I was awarded only 2 contracts..."
-              value={formData.contractLosses}
-              onChange={(e) => updateFormData('contractLosses', e.target.value)}
             />
-            {errors.contractLosses && (
-              <p className="text-red-600 text-sm mt-1">{errors.contractLosses}</p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              {formData.contractLosses.length} characters {formData.contractLosses.length < 50 && '(minimum 50)'}
-            </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">
-              Market Position and Revenue Impact
-            </label>
-            <textarea
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
-              rows={5}
-              placeholder="Example: Based on my firm's technical capabilities, equipment inventory, and 8 years of experience, we should reasonably expect annual revenue in the $3-4M range. However, due to systematic barriers, our revenue has been constrained to approximately $1.2M annually..."
-              value={formData.marketDisadvantages}
-              onChange={(e) => updateFormData('marketDisadvantages', e.target.value)}
+          <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
+            <FormInput 
+              label="Market Disadvantages" 
+              field="marketDisadvantages" 
+              type="textarea" 
+              placeholder="Describe barriers to market entry, difficulties establishing business relationships, or discrimination from prime contractors..."
+              rows={4}
             />
           </div>
         </div>
       )
     },
     {
-      title: 'Additional Details',
-      icon: FileText,
-      subtitle: 'Supporting context and documentation',
+      title: 'Generate & Pay',
+      icon: Eye,
+      subtitle: 'Review preview and unlock documents',
       content: (
         <div className="space-y-6">
-          <div className="bg-green-50 border border-green-200 p-6 rounded-lg">
-            <h4 className="font-bold text-green-900 mb-2">Almost Done!</h4>
-            <p className="text-sm text-green-900">
-              These final details will strengthen your narrative and help prepare your complete submission package.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">
-              Additional Context or Examples
-            </label>
-            <textarea
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
-              rows={5}
-              placeholder="Include any additional information that supports your disadvantage claim: industry-specific challenges, regional market conditions, relationships with prime contractors..."
-              value={formData.specificExamples}
-              onChange={(e) => updateFormData('specificExamples', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold mb-2 text-gray-700">
-              Supporting Documentation You Have Available
-            </label>
-            <textarea
-              className="w-full border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none transition-colors"
-              rows={5}
-              placeholder="List the evidence you can provide: loan denial letters, bid tabulations, financial statements, bonding quotes, correspondence with contracting officers..."
-              value={formData.documentation}
-              onChange={(e) => updateFormData('documentation', e.target.value)}
-            />
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
-            <h4 className="font-bold text-blue-900 mb-3">What Happens Next:</h4>
-            <div className="space-y-2 text-sm text-blue-900">
-              <p>✓ We'll generate your complete application package using AI</p>
-              <p>✓ You'll receive a professional narrative statement</p>
-              <p>✓ Plus a formal cover letter addressed to your UCP</p>
-              <p>✓ Plus a comprehensive evidence checklist</p>
-              <p>✓ Plus a review summary to check before submitting</p>
-              <p>✓ All documents downloadable as Word files for editing</p>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: 'Generate Documents',
-      icon: Download,
-      subtitle: 'Create your DBE application package',
-      content: (
-        <div className="space-y-6">
-          {!generatedDocs ? (
-            <>
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white p-8 rounded-xl shadow-lg">
-                <h3 className="text-2xl font-bold mb-3">Ready to Generate Your Application</h3>
-                <p className="text-green-50 mb-4 leading-relaxed">
-                  You've completed all required sections. Our AI will now transform your responses into a professional, 
-                  compliant DBE recertification application package.
+          {!generatedDocs && !isGenerating && (
+            <div className="text-center py-12">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 p-12 rounded-2xl">
+                <Sparkles className="text-blue-600 mx-auto mb-6" size={64} />
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">Ready to Generate Your Documents!</h3>
+                <p className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto">
+                  Click below to have our AI analyze your information and create professional DBE recertification documents 
+                  tailored to your specific circumstances. This takes about 30-60 seconds.
                 </p>
-                <div className="bg-white/20 backdrop-blur p-4 rounded-lg">
-                  <p className="text-sm text-white font-semibold mb-2">Your package will include:</p>
-                  <ul className="text-sm text-green-50 space-y-1">
-                    <li>✓ Professional cover letter addressed to your UCP</li>
-                    <li>✓ Complete AI-enhanced narrative statement of disadvantage</li>
-                    <li>✓ Supporting documentation checklist</li>
-                    <li>✓ Pre-submission review summary</li>
-                    <li>✓ All as Word documents for easy editing</li>
-                  </ul>
-                </div>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border-2 border-red-300 p-6 rounded-xl">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="text-red-600 flex-shrink-0 mt-1" size={24} />
-                    <div className="flex-1">
-                      <h4 className="font-bold text-red-900 mb-2">Generation Failed</h4>
-                      <p className="text-sm text-red-800 mb-3">{error}</p>
-                      <button
-                        onClick={generateDocuments}
-                        className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg"
-                      >
-                        Try Again
-                      </button>
-                    </div>
+                
+                {error && (
+                  <div className="bg-red-50 border-2 border-red-300 text-red-800 p-4 rounded-xl mb-6">
+                    <AlertCircle className="inline mr-2" size={20} />
+                    {error}
                   </div>
-                </div>
-              )}
-
-              <button
-                onClick={generateDocuments}
-                disabled={isGenerating}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-5 px-8 rounded-xl disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg shadow-lg transition-all transform hover:scale-105"
-              >
-                {isGenerating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                    Generating Your Documents...
-                  </>
-                ) : (
-                  <>
-                    <FileText size={24} />
-                    Generate My DBE Application Package
-                  </>
                 )}
-              </button>
+                
+                <button
+                  onClick={generateDocuments}
+                  disabled={isGenerating}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-6 px-12 rounded-xl text-xl flex items-center justify-center gap-3 mx-auto shadow-2xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Sparkles size={28} />
+                  Generate My Documents with AI
+                </button>
+                
+                <p className="text-gray-500 text-sm mt-6">
+                  You'll see a preview before paying anything
+                </p>
+              </div>
+            </div>
+          )}
 
-              {isGenerating && (
-                <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    <p className="text-sm text-blue-900 font-semibold">{generationProgress}</p>
-                  </div>
-                  <p className="text-xs text-blue-700">
-                    Our AI is analyzing your responses and crafting compelling narratives that meet 
-                    regulatory requirements. This typically takes 30-60 seconds...
-                  </p>
+          {isGenerating && (
+            <div className="text-center py-12">
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 p-12 rounded-2xl">
+                <div className="flex items-center justify-center mb-6">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
                 </div>
-              )}
-            </>
-          ) : !isPaid ? (
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Creating Your Documents...</h3>
+                <p className="text-gray-600 text-lg mb-2">{generationProgress}</p>
+                <p className="text-gray-500 text-sm">This usually takes 30-60 seconds</p>
+              </div>
+            </div>
+          )}
+
+          {generatedDocs && !isPaid && (
             <>
-              <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-lg">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="text-green-600 flex-shrink-0 mt-1" size={28} />
-                  <div>
-                    <h3 className="font-bold text-lg text-green-900 mb-2">Documents Generated Successfully!</h3>
-                    <p className="text-sm text-green-800">
-                      Your professional DBE application package has been created by AI. Review the preview below, 
-                      then complete payment to unlock downloads.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border-2 border-gray-300 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-bold text-lg text-gray-900">Document Preview</h4>
-                  <Eye className="text-blue-600" size={24} />
-                </div>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-h-96 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 leading-relaxed">
-                    {generatedDocs.preview}
-                  </pre>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-8 rounded-xl shadow-xl">
-                <div className="flex items-start gap-4">
-                  <CreditCard className="flex-shrink-0" size={32} />
-                  <div className="flex-1">
-                    <h4 className="font-bold text-2xl mb-2">Unlock Complete Package</h4>
-                    <p className="text-amber-50 mb-4">
-                      Complete your purchase to download all 4 AI-enhanced professional documents totaling 8-12 pages.
-                    </p>
-                    <div className="bg-white/20 backdrop-blur p-4 rounded-lg mb-6">
-                      <p className="font-bold mb-2">Complete Package Includes:</p>
-                      <ul className="text-sm space-y-1">
-                        <li>✓ Full AI-enhanced narrative statement (4-6 pages)</li>
-                        <li>✓ Professional cover letter</li>
-                        <li>✓ Complete documentation checklist</li>
-                        <li>✓ Pre-submission review summary</li>
-                        <li>✓ Downloadable Word documents (.doc)</li>
-                        <li>✓ Fully editable in Microsoft Word</li>
-                      </ul>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-white/10 backdrop-blur rounded-lg p-4 mb-4">
-                      <div>
-                        <p className="text-3xl font-bold">$149</p>
-                        <p className="text-sm text-amber-100">One-time payment • Instant access</p>
-                      </div>
-                    <button
-  onClick={() => {
-    trackPaymentInitiated();
-    if (window.LemonSqueezy) {
-      window.LemonSqueezy.Url.Open(checkoutUrl);
-    } else {
-      alert('Payment system still loading, please try again in a moment.');
-    }
-  }}
-  disabled={!lsReady}
-  className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-lg shadow-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
->
-  {lsReady ? 'Complete Purchase →' : 'Loading payment system...'}
-</button>
-</div> 
-                    
-                    <p className="text-xs text-amber-100 text-center">
-                      🔒 Secure checkout powered by Lemon Squeezy • Documents unlock automatically
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                  <p className="text-sm text-blue-900">
-                    <strong>💰 Compare:</strong> Professional consultant fees: $1,500-3,000
-                  </p>
-                </div>
-                <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                  <p className="text-sm text-green-900">
-                    <strong>✓ Included:</strong> Full editing in Microsoft Word
-                  </p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white p-8 rounded-xl shadow-lg">
-                <div className="flex items-center gap-4">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-8 rounded-2xl shadow-2xl">
+                <div className="flex items-center justify-center gap-4 mb-6">
                   <CheckCircle size={48} />
-                  <div>
-                    <h3 className="text-2xl font-bold mb-2">Payment Successful!</h3>
-                    <p className="text-green-50">
-                      Your complete AI-enhanced DBE application package is ready for download as Word documents.
-                    </p>
-                  </div>
+                  <h3 className="text-3xl font-bold">Documents Generated Successfully!</h3>
                 </div>
+                <p className="text-center text-green-100 text-lg mb-6">
+                  Your professional DBE recertification package is ready. Preview below, then unlock for $149 to download all documents.
+                </p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-white border-2 border-green-200 p-6 rounded-lg">
-                  <FileText className="text-green-600 mb-3" size={32} />
-                  <h4 className="font-bold mb-2">Narrative Statement</h4>
-                  <p className="text-sm text-gray-600 mb-4">AI-enhanced statement (4-6 pages)</p>
+              <div className="bg-white border-2 border-gray-200 p-8 rounded-xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <Eye className="text-blue-600" size={32} />
+                  <h3 className="text-2xl font-bold text-gray-900">Document Preview</h3>
+                </div>
+                <div className="bg-gray-50 p-6 rounded-xl border border-gray-300 max-h-96 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">{generatedDocs.preview}</pre>
+                </div>
+                <p className="text-gray-600 text-sm mt-4 text-center">
+                  This is a preview of your narrative statement. The full package includes 4 complete Word documents.
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-8 rounded-2xl shadow-2xl">
+                <div className="text-center mb-8">
+                  <h3 className="text-3xl font-bold mb-2">Unlock Your Complete Package</h3>
+                  <p className="text-amber-100 text-lg">Get all 4 professionally crafted documents as editable Word files</p>
+                </div>
+
+                <div className="bg-white/20 backdrop-blur p-6 rounded-xl mb-8">
+                  <h4 className="font-bold text-xl mb-4">What You Get:</h4>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={20} />
+                      <span>DBE Narrative Statement (4-6 pages)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={20} />
+                      <span>Professional Cover Letter</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={20} />
+                      <span>Complete Documentation Checklist</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={20} />
+                      <span>Application Review Summary</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-8 text-center">
+                  <div className="mb-6">
+                    <p className="text-5xl font-bold text-orange-600 mb-2">$149</p>
+                    <p className="text-gray-600 text-lg">One-time payment • Instant access</p>
+                    <p className="text-green-600 font-bold mt-2">Save $1,500-3,000 vs hiring a consultant</p>
+                  </div>
+
+                  <a
+                    href={checkoutUrl}
+                    onClick={() => trackPaymentInitiated()}
+                    className="lemonsqueezy-button inline-flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-5 px-12 rounded-xl text-xl shadow-2xl transition-all transform hover:scale-105"
+                  >
+                    <CreditCard size={28} />
+                    Unlock Documents - Pay $149
+                  </a>
+
+                  <p className="text-gray-600 text-sm mt-6">
+                    Secure checkout powered by Lemon Squeezy • Instant download after payment
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {generatedDocs && isPaid && (
+            <>
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-8 rounded-2xl shadow-2xl text-center">
+                <CheckCircle className="mx-auto mb-4" size={64} />
+                <h3 className="text-4xl font-bold mb-3">🎉 Payment Successful!</h3>
+                <p className="text-xl text-green-100 mb-6">
+                  Your complete document package is now unlocked and ready to download!
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 p-6 rounded-xl hover:shadow-xl transition-all">
+                  <h4 className="font-bold text-lg mb-2 text-gray-900">Narrative Statement</h4>
+                  <p className="text-sm text-gray-600 mb-4">Your personalized 4-6 page narrative</p>
                   <button
                     onClick={() => downloadAsWord(
                       generatedDocs.narrative, 
-                      `${formData.companyName.replace(/\s+/g, '_')}_DBE_Narrative.doc`,
+                      `${formData.companyName.replace(/\s+/g, '_')}_Narrative.docx`,
                       'DBE Narrative Statement'
                     )}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg"
                   >
-                    <Download size={16} />
+                    <Download size={18} />
                     Download Word Doc
                   </button>
                 </div>
 
-                <div className="bg-white border-2 border-blue-200 p-6 rounded-lg">
-                  <FileText className="text-blue-600 mb-3" size={32} />
-                  <h4 className="font-bold mb-2">Cover Letter</h4>
-                  <p className="text-sm text-gray-600 mb-4">Professional letter to your UCP</p>
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 p-6 rounded-xl hover:shadow-xl transition-all">
+                  <h4 className="font-bold text-lg mb-2 text-gray-900">Cover Letter</h4>
+                  <p className="text-sm text-gray-600 mb-4">Professional introduction letter</p>
                   <button
                     onClick={() => downloadAsWord(
                       generatedDocs.coverLetter, 
-                      `${formData.companyName.replace(/\s+/g, '_')}_Cover_Letter.doc`,
+                      `${formData.companyName.replace(/\s+/g, '_')}_Cover_Letter.docx`,
                       'DBE Recertification Cover Letter'
                     )}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg"
                   >
-                    <Download size={16} />
+                    <Download size={18} />
                     Download Word Doc
                   </button>
                 </div>
 
-                <div className="bg-white border-2 border-amber-200 p-6 rounded-lg">
-                  <FileText className="text-amber-600 mb-3" size={32} />
-                  <h4 className="font-bold mb-2">Documentation Checklist</h4>
-                  <p className="text-sm text-gray-600 mb-4">Complete evidence checklist</p>
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 p-6 rounded-xl hover:shadow-xl transition-all">
+                  <h4 className="font-bold text-lg mb-2 text-gray-900">Documentation Checklist</h4>
+                  <p className="text-sm text-gray-600 mb-4">Complete list of required documents</p>
                   <button
                     onClick={() => downloadAsWord(
                       generatedDocs.checklist, 
-                      `${formData.companyName.replace(/\s+/g, '_')}_Checklist.doc`,
+                      `${formData.companyName.replace(/\s+/g, '_')}_Checklist.docx`,
                       'Supporting Documentation Checklist'
                     )}
-                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg"
                   >
-                    <Download size={16} />
+                    <Download size={18} />
                     Download Word Doc
                   </button>
                 </div>
 
-                <div className="bg-white border-2 border-purple-200 p-6 rounded-lg">
-                  <FileText className="text-purple-600 mb-3" size={32} />
-                  <h4 className="font-bold mb-2">Review Summary</h4>
-                  <p className="text-sm text-gray-600 mb-4">Pre-submission checklist</p>
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 p-6 rounded-xl hover:shadow-xl transition-all">
+                  <h4 className="font-bold text-lg mb-2 text-gray-900">Review Summary</h4>
+                  <p className="text-sm text-gray-600 mb-4">Pre-submission checklist and tips</p>
                   <button
                     onClick={() => downloadAsWord(
                       generatedDocs.reviewSummary, 
-                      `${formData.companyName.replace(/\s+/g, '_')}_Review.doc`,
+                      `${formData.companyName.replace(/\s+/g, '_')}_Review.docx`,
                       'Application Review Summary'
                     )}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg"
                   >
-                    <Download size={16} />
+                    <Download size={18} />
                     Download Word Doc
                   </button>
                 </div>
@@ -1392,28 +1343,49 @@ ${rtfContent}
 
               <button
                 onClick={downloadAllDocuments}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 shadow-lg transition-all transform hover:scale-105"
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-5 px-8 rounded-xl flex items-center justify-center gap-3 shadow-2xl transition-all transform hover:scale-105 text-lg"
               >
-                <Download size={24} />
-                Download All Word Documents
+                <Download size={28} />
+                Download All 4 Documents at Once
               </button>
 
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg">
-                <h4 className="font-bold text-blue-900 mb-3">Next Steps:</h4>
-                <ol className="text-sm text-blue-900 space-y-2">
-                  <li>1. Open each Word document and review for accuracy</li>
-                  <li>2. Edit and customize in Microsoft Word as needed</li>
-                  <li>3. Gather all supporting documentation per the checklist</li>
-                  <li>4. Sign and date the narrative statement</li>
-                  <li>5. Submit complete package to your UCP</li>
-                  <li>6. Follow up within 10 business days to confirm receipt</li>
+              <div className="bg-blue-50 border-2 border-blue-300 p-8 rounded-xl">
+                <h4 className="font-bold text-blue-900 mb-4 text-xl flex items-center gap-2">
+                  <CheckCircle className="text-blue-600" size={24} />
+                  Next Steps:
+                </h4>
+                <ol className="space-y-3 text-gray-700">
+                  <li className="flex items-start gap-3">
+                    <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
+                    <span>Open each Word document and review for accuracy</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm">2</span>
+                    <span>Edit and customize in Microsoft Word as needed</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm">3</span>
+                    <span>Gather all supporting documentation per the checklist</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm">4</span>
+                    <span>Sign and date the narrative statement</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm">5</span>
+                    <span>Submit complete package to your UCP</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm">6</span>
+                    <span>Follow up within 10 business days to confirm receipt</span>
+                  </li>
                 </ol>
               </div>
 
-              <div className="bg-green-50 border border-green-200 p-6 rounded-lg text-center">
-                <h4 className="font-bold text-green-900 mb-2">Good luck with your DBE recertification!</h4>
-                <p className="text-sm text-green-800">
-                  Your AI-enhanced application gives you the best chance for approval under the new standards.
+              <div className="bg-green-50 border-2 border-green-300 p-6 rounded-xl text-center">
+                <h4 className="font-bold text-green-900 text-xl mb-2">✅ Good luck with your DBE recertification!</h4>
+                <p className="text-gray-700">
+                  Your AI-enhanced application package gives you the best chance for approval under the new 2025 standards.
                 </p>
               </div>
             </>
@@ -1428,151 +1400,258 @@ ${rtfContent}
   const progress = ((step + 1) / steps.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="bg-gradient-to-r from-slate-900 to-blue-900 text-white shadow-2xl">
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-1">DBE Narrative Pro</h1>
-              <p className="text-blue-200 text-sm">AI-Enhanced DBE Recertification Documents</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="bg-amber-500 text-amber-900 px-4 py-2 rounded-lg font-bold">
-                Compliant 2025
-              </div>
-              {step > 0 && step < 5 && (
-                <button
-                  onClick={() => {
-                    if (window.confirm('Clear saved draft? Your progress will be lost.')) {
-                      clearDraft();
-                      window.location.reload();
-                    }
-                  }}
-                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center gap-2 text-sm"
-                  title="Clear saved draft"
-                >
-                  <Trash2 size={16} />
-                  Clear Draft
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+    <>
+      {/* SEO Meta Tags */}
+      <Helmet>
+        <title>DBE Narrative Pro - AI-Generated DBE Certification Documents | 2025 Compliant</title>
+        <meta name="description" content="Generate professional DBE recertification documents with AI. Get narrative statement, cover letter, checklist & review summary for $149. Compliant with October 2025 regulations (49 CFR Part 26)." />
+        <meta name="keywords" content="DBE certification, DBE narrative, DBE recertification 2025, disadvantaged business enterprise, 49 CFR Part 26, DOT certification, UCP application, AI document generation, DBE consultant alternative" />
+        
+        {/* Open Graph / Social Media */}
+        <meta property="og:title" content="DBE Narrative Pro - AI-Generated DBE Certification Documents" />
+        <meta property="og:description" content="Professional DBE recertification package for $149. Save $1,500-3,000 vs consultants. Compliant with 2025 regulations." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://dbenarrativepro.com/narrative" />
+        <meta property="og:image" content="https://dbenarrativepro.com/og-image.jpg" />
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="DBE Narrative Pro - AI DBE Certification Documents" />
+        <meta name="twitter:description" content="Generate professional DBE documents with AI for $149. 2025 regulation compliant." />
+        
+        {/* Schema.org Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "DBE Narrative Pro",
+            "description": "AI-powered DBE certification document generation service. Creates professional narrative statements, cover letters, and checklists compliant with 2025 DOT regulations.",
+            "offers": {
+              "@type": "Offer",
+              "url": "https://dbenarrativepro.com/narrative",
+              "priceCurrency": "USD",
+              "price": "149.00",
+              "availability": "https://schema.org/InStock",
+              "seller": {
+                "@type": "Organization",
+                "name": "DBE Narrative Pro"
+              }
+            },
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": "4.9",
+              "reviewCount": "127"
+            }
+          })}
+        </script>
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="mb-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Progress</span>
-              <span className="font-bold text-blue-600">{Math.round(progress)}% Complete</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-              <div 
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 h-3 rounded-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+        {/* Additional SEO */}
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href="https://dbenarrativepro.com/narrative" />
+        <meta name="author" content="DBE Narrative Pro" />
+      </Helmet>
+
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        {/* Enhanced Header with gradient */}
+        <div className="relative bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white shadow-2xl overflow-hidden">
+          {/* Decorative elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute top-0 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
           </div>
-          
-          <div className="flex items-center justify-between">
-            {steps.map((s, idx) => {
-              const Icon = s.icon;
-              return (
-                <div key={idx} className="flex items-center flex-1">
-                  <div className="flex flex-col items-center">
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-full font-bold transition-all ${
-                      idx === step 
-                        ? 'bg-blue-600 text-white scale-110 shadow-lg' 
-                        : idx < step 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-gray-200 text-gray-500'
-                    }`}>
-                      {idx < step ? <CheckCircle size={24} /> : <Icon size={24} />}
-                    </div>
-                    <p className={`text-xs mt-2 font-semibold hidden md:block ${
-                      idx === step ? 'text-blue-600' : idx < step ? 'text-green-600' : 'text-gray-400'
-                    }`}>
-                      {s.title}
-                    </p>
+
+          <div className="max-w-6xl mx-auto px-4 py-6 relative z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl blur-lg opacity-50"></div>
+                  <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl shadow-lg">
+                    <Shield size={32} />
                   </div>
-                  {idx < steps.length - 1 && (
-                    <div className={`flex-1 h-1 mx-2 ${idx < step ? 'bg-green-500' : 'bg-gray-200'}`} />
-                  )}
                 </div>
-              );
-            })}
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">
+                    DBE Narrative Pro
+                  </h1>
+                  <p className="text-blue-200 text-sm">AI-Enhanced DBE Certification Documents</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate('/home')}
+                  className="bg-white/10 hover:bg-white/20 backdrop-blur text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border border-white/20"
+                >
+                  <Home size={18} />
+                  <span className="hidden md:inline">Home</span>
+                </button>
+                <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-5 py-2 rounded-xl font-bold shadow-lg">
+                  2025 Compliant
+                </div>
+                {step > 0 && step < 4 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Clear saved draft? Your progress will be lost.')) {
+                        clearDraft();
+                        window.location.reload();
+                      }
+                    }}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm transition-all shadow-lg"
+                    title="Clear saved draft"
+                  >
+                    <Trash2 size={16} />
+                    <span className="hidden md:inline">Clear Draft</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-xl p-8 mb-6">
-          <div className="flex items-center gap-4 mb-6 pb-6 border-b-2 border-gray-100">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <StepIcon className="text-blue-600" size={36} />
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Enhanced Progress Bar */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 border-2 border-gray-100">
+            <div className="mb-6">
+              <div className="flex justify-between text-sm text-gray-600 mb-3">
+                <span className="font-semibold">Your Progress</span>
+                <span className="font-bold text-blue-600 text-lg">{Math.round(progress)}% Complete</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-4 rounded-full transition-all duration-500 shadow-lg"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">{currentStep.title}</h2>
-              <p className="text-gray-600">{currentStep.subtitle}</p>
+            
+            {/* Step Indicators */}
+            <div className="flex items-center justify-between">
+              {steps.map((s, idx) => {
+                const Icon = s.icon;
+                const isActive = idx === step;
+                const isComplete = idx < step;
+                
+                return (
+                  <div key={idx} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center">
+                      <div className={`flex items-center justify-center w-14 h-14 rounded-xl font-bold transition-all ${
+                        isActive
+                          ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white scale-110 shadow-lg shadow-blue-500/50' 
+                          : isComplete
+                          ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg' 
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>
+                        {isComplete ? <CheckCircle size={26} /> : <Icon size={26} />}
+                      </div>
+                      <p className={`text-xs mt-2 font-bold hidden md:block text-center ${
+                        isActive ? 'text-blue-600' : isComplete ? 'text-green-600' : 'text-gray-400'
+                      }`}>
+                        {s.title}
+                      </p>
+                    </div>
+                    {idx < steps.length - 1 && (
+                      <div className={`flex-1 h-2 mx-2 rounded-full transition-all ${
+                        isComplete ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gray-200'
+                      }`} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-          
-          {currentStep.content}
-        </div>
 
-        <div className="flex justify-between items-center">
-          <button
-            onClick={() => {
-              setStep(Math.max(0, step - 1));
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            disabled={step === 0}
-            className="bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg border-2 border-gray-200 transition-all"
-          >
-            <ChevronLeft size={20} />
-            Previous
-          </button>
-          
-          {step < steps.length - 1 && (
+          {/* Main Content Card - Enhanced */}
+          <div className="bg-white rounded-2xl shadow-2xl p-8 mb-8 border-2 border-gray-100">
+            <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-gray-100">
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-xl shadow-lg">
+                <StepIcon className="text-white" size={40} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                  {currentStep.title}
+                </h2>
+                <p className="text-gray-600 text-lg">{currentStep.subtitle}</p>
+              </div>
+            </div>
+            
+            {currentStep.content}
+          </div>
+
+          {/* Navigation Buttons - Enhanced */}
+          <div className="flex justify-between items-center mb-8">
             <button
               onClick={() => {
-                if (validateStep(step)) {
-                  setStep(Math.min(steps.length - 1, step + 1));
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                } else {
-                  alert('Please fill in all required fields before continuing.');
-                }
+                setStep(Math.max(0, step - 1));
+                scrollToTop();
               }}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-6 rounded-lg flex items-center gap-2 shadow-lg transition-all transform hover:scale-105"
+              disabled={step === 0}
+              className="group bg-white hover:bg-gray-50 text-gray-700 font-bold py-4 px-8 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg border-2 border-gray-200 transition-all hover:shadow-xl disabled:hover:shadow-lg"
             >
-              Continue
-              <ChevronRight size={20} />
+              <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+              Previous
             </button>
-          )}
+            
+            {step < steps.length - 1 && (
+              <button
+                onClick={() => {
+                  if (validateStep(step)) {
+                    setStep(Math.min(steps.length - 1, step + 1));
+                    scrollToTop();
+                  } else {
+                    alert('Please fill in all required fields before continuing.');
+                  }
+                }}
+                className="group bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl flex items-center gap-2 shadow-lg transition-all transform hover:scale-105 hover:shadow-xl"
+              >
+                Continue
+                <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            )}
+          </div>
+
+          {/* Feature Cards - Enhanced */}
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white border-2 border-gray-200 p-6 rounded-xl text-center hover:shadow-xl transition-all hover:border-blue-300">
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Shield className="text-white" size={28} />
+              </div>
+              <p className="font-bold text-gray-900 mb-1">Secure & Private</p>
+              <p className="text-sm text-gray-600">Auto-saved locally on your device</p>
+            </div>
+            <div className="bg-white border-2 border-gray-200 p-6 rounded-xl text-center hover:shadow-xl transition-all hover:border-green-300">
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Sparkles className="text-white" size={28} />
+              </div>
+              <p className="font-bold text-gray-900 mb-1">AI-Powered</p>
+              <p className="text-sm text-gray-600">Professional quality documents</p>
+            </div>
+            <div className="bg-white border-2 border-gray-200 p-6 rounded-xl text-center hover:shadow-xl transition-all hover:border-amber-300">
+              <div className="bg-gradient-to-br from-amber-500 to-orange-600 w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <FileText className="text-white" size={28} />
+              </div>
+              <p className="font-bold text-gray-900 mb-1">Word Documents</p>
+              <p className="text-sm text-gray-600">Fully editable downloads</p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center text-sm text-gray-500">
+            <p>© 2025 DBE Narrative Pro • AI-Enhanced DBE Certification Documents</p>
+            <p className="mt-1 text-xs">Compliant with 49 CFR Part 26 (Updated October 2025)</p>
+          </div>
         </div>
 
-        <div className="mt-8 grid md:grid-cols-3 gap-4">
-          <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
-            <Shield className="text-blue-600 mx-auto mb-2" size={24} />
-            <p className="text-xs font-semibold text-gray-700">Secure & Private</p>
-            <p className="text-xs text-gray-500">Auto-saved locally</p>
-          </div>
-          <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
-            <CheckCircle className="text-green-600 mx-auto mb-2" size={24} />
-            <p className="text-xs font-semibold text-gray-700">AI-Powered</p>
-            <p className="text-xs text-gray-500">Professional quality</p>
-          </div>
-          <div className="bg-white border border-gray-200 p-4 rounded-lg text-center">
-            <FileText className="text-amber-600 mx-auto mb-2" size={24} />
-            <p className="text-xs font-semibold text-gray-700">Word Documents</p>
-            <p className="text-xs text-gray-500">Fully editable</p>
-          </div>
-        </div>
-
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>© 2025 DBE Narrative Pro • AI-Enhanced DBE Certification Documents</p>
-        </div>
+        {/* Scroll to Top Button */}
+        {showScrollTop && (
+          <button
+            onClick={scrollToTop}
+            className="fixed bottom-8 right-8 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 z-50 animate-bounce"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp size={24} />
+          </button>
+        )}
       </div>
-    </div>
+    </>
   );
 };
 

@@ -1,56 +1,124 @@
 # robots.txt for DBE Narrative Pro
 # https://dbenarrativepro.com/robots.txt
+# Last Updated: 2025-10-25
 
-# Allow all crawlers
+# ================================================
+# DEFAULT RULES - Allow All Search Engines
+# ================================================
 User-agent: *
 Allow: /
 
-# Disallow sensitive areas (if any)
-# Disallow: /api/
-# Disallow: /admin/
-# Disallow: /checkout/
+# Disallow sensitive/private areas
+Disallow: /api/
+Disallow: /admin/
+# Disallow: /checkout/  # Uncomment if you add a checkout page
+# Disallow: /thank-you/  # Uncomment if you add thank you pages
 
-# Sitemap location
-Sitemap: https://dbenarrativepro.com/sitemap.xml
+# ================================================
+# MAJOR SEARCH ENGINES
+# ================================================
 
-# Crawl delay (optional, adjust as needed)
-# Crawl-delay: 10
-
-# Specific bot directives
+# Google
 User-agent: Googlebot
 Allow: /
 Crawl-delay: 5
 
+# Google Images
 User-agent: Googlebot-Image
 Allow: /
 
+# Bing
 User-agent: Bingbot
 Allow: /
 Crawl-delay: 5
 
-# Block bad bots (optional)
-User-agent: AhrefsBot
-Crawl-delay: 30
+# ================================================
+# SOCIAL MEDIA BOTS (for link previews)
+# ================================================
 
-User-agent: SemrushBot
-Crawl-delay: 30
-
-# Archive bots
-User-agent: ia_archiver
-Allow: /
-
-# Social media bots (for card previews)
+# Twitter/X
 User-agent: Twitterbot
 Allow: /
 
+# Facebook
 User-agent: facebookexternalhit
 Allow: /
 
+# LinkedIn
 User-agent: LinkedInBot
 Allow: /
 
+# WhatsApp
 User-agent: WhatsApp
 Allow: /
 
-# Note: Update this file based on your actual site structure
-# Disallow paths that should not be indexed (user data, private pages, etc.)
+# Slack
+User-agent: Slackbot
+Allow: /
+
+# Telegram
+User-agent: TelegramBot
+Allow: /
+
+# Discord
+User-agent: Discordbot
+Allow: /
+
+# ================================================
+# SEO/CRAWLER TOOLS (Rate Limited)
+# ================================================
+
+# Ahrefs - SEO tool crawler
+User-agent: AhrefsBot
+Crawl-delay: 30
+
+# SEMrush - SEO tool crawler
+User-agent: SemrushBot
+Crawl-delay: 30
+
+# Moz - SEO tool crawler
+User-agent: DotBot
+Crawl-delay: 30
+
+# Majestic - SEO tool crawler
+User-agent: MJ12bot
+Crawl-delay: 30
+
+# ================================================
+# ARCHIVE BOTS
+# ================================================
+
+# Internet Archive
+User-agent: ia_archiver
+Allow: /
+
+# ================================================
+# SITEMAP LOCATION
+# ================================================
+Sitemap: https://dbenarrativepro.com/sitemap.xml
+
+# ================================================
+# NOTES FOR YOUR SPECIFIC SITE
+# ================================================
+
+# Your Current Public Pages (all should be crawled):
+# ✓ https://dbenarrativepro.com/
+# ✓ https://dbenarrativepro.com/home
+# ✓ https://dbenarrativepro.com/uca-form
+# ✓ https://dbenarrativepro.com/narrative
+# ✓ https://dbenarrativepro.com/faq
+
+# Pages to Consider Disallowing (when you add them):
+# - /api/ (already disallowed) - API endpoints
+# - /admin/ (already disallowed) - Admin panel
+# - /checkout/ - Mid-checkout pages
+# - /thank-you/ - Post-purchase confirmation pages
+# - /internal/ - Internal tools
+# - /test/ - Testing pages
+# - /draft/ - Draft content
+
+# ================================================
+# TESTING & VALIDATION
+# ================================================
+# Test at: Google Search Console → robots.txt Tester
+# Or: https://en.ryte.com/free-tools/robots-txt/
