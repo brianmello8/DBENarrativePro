@@ -93,7 +93,11 @@ const DBENarrativePro = () => {
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
-  const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1?embed=1";
+  // Build checkout URL with success redirect
+  const baseCheckoutUrl = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1";
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const successUrl = currentUrl.split('?')[0] + '?payment=success';
+  const LEMON_SQUEEZY_CHECKOUT_URL = `${baseCheckoutUrl}?embed=1&checkout[custom][success_url]=${encodeURIComponent(successUrl)}`;
   const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4"; // TODO: Replace with your GA4 Measurement ID
   // ============================================
 
@@ -278,6 +282,32 @@ const DBENarrativePro = () => {
 //     }
 //   }, []);
 
+  // Check URL parameters for payment success (fallback if event doesn't fire)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentSuccess = urlParams.get('payment');
+    
+    if (paymentSuccess === 'success') {
+      console.log('🎉 Payment detected via URL parameter!');
+      setIsPaid(true);
+      
+      // Store payment status
+      localStorage.setItem('dbe_narrative_paid', 'true');
+      localStorage.setItem('dbe_narrative_payment_date', new Date().toISOString());
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Show success message
+      setTimeout(() => {
+        alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 500);
+      
+      trackPaymentSuccess('url_parameter');
+    }
+  }, []);
+
   // Track step changes
   useEffect(() => {
     if (step > 0) {
@@ -306,8 +336,9 @@ const DBENarrativePro = () => {
           eventHandler: (event) => {
             console.log('📨 Lemon Squeezy event:', event);
             
+            // Handle successful payment
             if (event.event === 'Checkout.Success') {
-              console.log('🎉 Payment successful!', event);
+              console.log('🎉 Payment successful via overlay!', event);
               
               setIsPaid(true);
               
@@ -318,18 +349,29 @@ const DBENarrativePro = () => {
                 if (event.data?.order_id) {
                   localStorage.setItem('dbe_order_id', event.data.order_id);
                   console.log('💾 Stored order ID:', event.data.order_id);
-                  
                   trackPaymentSuccess(event.data.order_id);
+                } else {
+                  trackPaymentSuccess('overlay_success');
                 }
               } catch (error) {
                 console.error('Error storing payment status:', error);
               }
               
+              // Scroll to top and show success message
               setTimeout(() => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-              }, 100);
-              
-              alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
+                alert('🎉 Payment successful! Your documents are now unlocked and ready to download.');
+              }, 500);
+            }
+            
+            // Handle overlay close
+            if (event.event === 'Checkout.Closed') {
+              console.log('Checkout overlay closed');
+            }
+            
+            // Handle when checkout is shown
+            if (event.event === 'Checkout.Shown') {
+              console.log('Checkout overlay opened');
             }
           }
         });
@@ -1253,14 +1295,21 @@ const DBENarrativePro = () => {
                     <p className="text-green-600 font-bold mt-2">Save $1,500-3,000 vs hiring a consultant</p>
                   </div>
 
-                  <a
-                    href={checkoutUrl}
-                    onClick={() => trackPaymentInitiated()}
-                    className="lemonsqueezy-button inline-flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-5 px-12 rounded-xl text-xl shadow-2xl transition-all transform hover:scale-105"
+                  <button
+                    onClick={() => {
+                      trackPaymentInitiated();
+                      if (window.LemonSqueezy) {
+                        window.LemonSqueezy.Url.Open(checkoutUrl);
+                      } else {
+                        window.open(checkoutUrl, '_blank');
+                      }
+                    }}
+                    disabled={!lsReady}
+                    className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-5 px-12 rounded-xl text-xl shadow-2xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CreditCard size={28} />
-                    Unlock Documents - Pay $149
-                  </a>
+                    {lsReady ? 'Unlock Documents - Pay $149' : 'Loading Payment System...'}
+                  </button>
 
                   <p className="text-gray-600 text-sm mt-6">
                     Secure checkout powered by Lemon Squeezy • Instant download after payment
