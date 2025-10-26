@@ -93,7 +93,7 @@ const DBENarrativePro = () => {
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
-  const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1";
+  const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1?embed=1";
   const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4"; // TODO: Replace with your GA4 Measurement ID
   // ============================================
 
@@ -266,13 +266,17 @@ const DBENarrativePro = () => {
     checkForDraft();
   }, []);
 
-  // Check if user already paid
-  useEffect(() => {
-    const paidStatus = localStorage.getItem('dbe_narrative_paid');
-    if (paidStatus === 'true') {
-      setIsPaid(true);
-    }
-  }, []);
+  // ⚠️ SECURITY FIX: Payment bypass removed - localStorage should NOT be trusted
+  // For production: verify payment status server-side via API
+  // For testing ONLY, uncomment below lines (but REMOVE for production):
+
+//   // Check if user already paid
+//   useEffect(() => {
+//     const paidStatus = localStorage.getItem('dbe_narrative_paid');
+//     if (paidStatus === 'true') {
+//       setIsPaid(true);
+//     }
+//   }, []);
 
   // Track step changes
   useEffect(() => {
@@ -285,7 +289,7 @@ const DBENarrativePro = () => {
   // Load Lemon Squeezy script and setup official event handler
   useEffect(() => {
     const script = document.createElement('script');
-    script.src = "https://app.lemonsqueezy.com/js/lemon.js";
+    script.src = "https://assets.lemonsqueezy.com/lemon.js";
     script.defer = true;
     document.head.appendChild(script);
 
@@ -622,7 +626,7 @@ const DBENarrativePro = () => {
     try {
       const doc = createWordDocument(title, content);
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, filename.replace('.doc', '.docx'));
+      saveAs(blob, filename);
       
       trackEvent('document_download', {
         document_type: title,
