@@ -4,6 +4,64 @@ import { ChevronRight, ChevronLeft, Download, FileText, CheckCircle, Building2, 
 import { PDFDocument } from 'pdf-lib';
 import { saveAs } from 'file-saver';
 
+// Form component definitions (moved outside to prevent re-creation on each render)
+const FormInput = ({ label, field, formData, updateFormData, errors, type = "text", required = false, placeholder = "", disabled = false }) => (
+  <div className="mb-6">
+    <label className="block text-sm font-bold text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <input
+      type={type}
+      value={formData[field] || ''}
+      onChange={(e) => updateFormData(field, e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled}
+      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+        errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+      } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+    />
+    {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
+  </div>
+);
+
+const FormTextarea = ({ label, field, formData, updateFormData, errors, required = false, placeholder = "", rows = 4 }) => (
+  <div className="mb-6">
+    <label className="block text-sm font-bold text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <textarea
+      value={formData[field] || ''}
+      onChange={(e) => updateFormData(field, e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+        errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+      }`}
+    />
+    {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
+  </div>
+);
+
+const FormSelect = ({ label, field, formData, updateFormData, errors, options, required = false }) => (
+  <div className="mb-6">
+    <label className="block text-sm font-bold text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <select
+      value={formData[field] || ''}
+      onChange={(e) => updateFormData(field, e.target.value)}
+      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+        errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+      }`}
+    >
+      {options.map(opt => (
+        <option key={opt} value={opt}>{opt}</option>
+      ))}
+    </select>
+    {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
+  </div>
+);
+
 const UCAFormFiller = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -317,63 +375,6 @@ const UCAFormFiller = () => {
     }
   };
 
-  const FormInput = ({ label, field, type = "text", required = false, placeholder = "", disabled = false }) => (
-    <div className="mb-6">
-      <label className="block text-sm font-bold text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <input
-        type={type}
-        value={formData[field] || ''}
-        onChange={(e) => updateFormData(field, e.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-          errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
-        } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-      />
-      {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
-    </div>
-  );
-
-  const FormTextarea = ({ label, field, required = false, placeholder = "", rows = 4 }) => (
-    <div className="mb-6">
-      <label className="block text-sm font-bold text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <textarea
-        value={formData[field] || ''}
-        onChange={(e) => updateFormData(field, e.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-          errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
-        }`}
-      />
-      {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
-    </div>
-  );
-
-  const FormSelect = ({ label, field, options, required = false }) => (
-    <div className="mb-6">
-      <label className="block text-sm font-bold text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <select
-        value={formData[field] || ''}
-        onChange={(e) => updateFormData(field, e.target.value)}
-        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-          errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
-        }`}
-      >
-        {options.map(opt => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
-      {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
-    </div>
-  );
-
   const steps = [
     {
       title: "Welcome",
@@ -501,52 +502,52 @@ const UCAFormFiller = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <FormInput label="Primary Contact Name" field="contactName" required placeholder="John Smith" />
-            <FormInput label="Contact Title/Position" field="contactTitle" placeholder="Owner / CEO" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Primary Contact Name" field="contactName" required placeholder="John Smith" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Contact Title/Position" field="contactTitle" placeholder="Owner / CEO" />
           </div>
 
-          <FormInput label="Legal Business Name" field="legalName" required placeholder="ABC Construction LLC" />
+          <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Legal Business Name" field="legalName" required placeholder="ABC Construction LLC" />
 
           <div className="grid md:grid-cols-3 gap-6">
-            <FormInput label="Phone Number" field="phone" type="tel" required placeholder="(555) 123-4567" />
-            <FormInput label="Additional Phone" field="otherPhone" type="tel" placeholder="(555) 987-6543" />
-            <FormInput label="Fax Number" field="fax" type="tel" placeholder="(555) 111-2222" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Phone Number" field="phone" type="tel" required placeholder="(555) 123-4567" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Additional Phone" field="otherPhone" type="tel" placeholder="(555) 987-6543" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Fax Number" field="fax" type="tel" placeholder="(555) 111-2222" />
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <FormInput label="Email Address" field="email" type="email" required placeholder="contact@business.com" />
-            <FormInput label="Website" field="website" type="url" placeholder="www.business.com" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Email Address" field="email" type="email" required placeholder="contact@business.com" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Website" field="website" type="url" placeholder="www.business.com" />
           </div>
 
           <div className="bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
             <h4 className="font-bold text-lg text-gray-900 mb-4">Physical Business Address</h4>
-            <FormInput label="Street Address" field="streetAddress" placeholder="123 Main Street" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Street Address" field="streetAddress" placeholder="123 Main Street" />
             <div className="grid md:grid-cols-3 gap-6">
-              <FormInput label="City" field="city" placeholder="Los Angeles" />
-              <FormInput label="County" field="county" placeholder="Los Angeles County" />
-              <FormInput label="State" field="state" placeholder="CA" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="City" field="city" placeholder="Los Angeles" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="County" field="county" placeholder="Los Angeles County" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="State" field="state" placeholder="CA" />
             </div>
-            <FormInput label="ZIP Code" field="zip" placeholder="90001" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="ZIP Code" field="zip" placeholder="90001" />
           </div>
 
           <div className="bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
             <h4 className="font-bold text-lg text-gray-900 mb-4">Mailing Address (if different)</h4>
-            <FormInput label="Mailing Address" field="mailingAddress" placeholder="P.O. Box 123" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Mailing Address" field="mailingAddress" placeholder="P.O. Box 123" />
             <div className="grid md:grid-cols-3 gap-6">
-              <FormInput label="City" field="mailingCity" placeholder="Los Angeles" />
-              <FormInput label="State" field="mailingState" placeholder="CA" />
-              <FormInput label="ZIP Code" field="mailingZip" placeholder="90001" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="City" field="mailingCity" placeholder="Los Angeles" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="State" field="mailingState" placeholder="CA" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="ZIP Code" field="mailingZip" placeholder="90001" />
             </div>
           </div>
 
           <div className="bg-yellow-50 border-2 border-yellow-300 p-6 rounded-xl">
-            <FormSelect 
+            <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Has your firm been previously denied DBE certification?" 
               field="priorDenial" 
               options={['No', 'Yes']} 
             />
             {formData.priorDenial === 'Yes' && (
-              <FormTextarea 
+              <FormTextarea formData={formData} updateFormData={updateFormData} errors={errors} 
                 label="Explain the denial and what has changed since then" 
                 field="priorDenialExplanation" 
                 placeholder="Provide details about the previous denial..."
@@ -569,7 +570,7 @@ const UCAFormFiller = () => {
             </p>
           </div>
 
-          <FormTextarea 
+          <FormTextarea formData={formData} updateFormData={updateFormData} errors={errors} 
             label="Detailed Business Description" 
             field="businessDescription" 
             required 
@@ -578,12 +579,12 @@ const UCAFormFiller = () => {
           />
 
           <div className="grid md:grid-cols-2 gap-6">
-            <FormInput 
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
               label="NAICS Codes" 
               field="naicsCodes" 
               placeholder="236220, 238210" 
             />
-            <FormInput 
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Date Business Established" 
               field="establishedDate" 
               type="date" 
@@ -592,13 +593,13 @@ const UCAFormFiller = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <FormSelect 
+            <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Is this a for-profit business?" 
               field="forProfit" 
               options={['Yes', 'No']} 
               required 
             />
-            <FormInput 
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Federal Tax ID (EIN)" 
               field="federalTaxId" 
               required 
@@ -606,7 +607,7 @@ const UCAFormFiller = () => {
             />
           </div>
 
-          <FormSelect 
+          <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
             label="Business Structure" 
             field="businessStructure" 
             options={['', 'Sole Proprietorship', 'Partnership', 'LLC', 'Corporation', 'S-Corporation', 'Other']} 
@@ -615,9 +616,9 @@ const UCAFormFiller = () => {
           <div className="bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
             <h4 className="font-bold text-lg text-gray-900 mb-4">Employee Count</h4>
             <div className="grid md:grid-cols-3 gap-6">
-              <FormInput label="Full-Time Employees" field="fullTimeEmployees" type="number" placeholder="5" />
-              <FormInput label="Part-Time Employees" field="partTimeEmployees" type="number" placeholder="2" />
-              <FormInput label="Seasonal Employees" field="seasonalEmployees" type="number" placeholder="0" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Full-Time Employees" field="fullTimeEmployees" type="number" placeholder="5" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Part-Time Employees" field="partTimeEmployees" type="number" placeholder="2" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Seasonal Employees" field="seasonalEmployees" type="number" placeholder="0" />
             </div>
           </div>
 
@@ -684,13 +685,13 @@ const UCAFormFiller = () => {
           <div className="bg-yellow-50 border-2 border-yellow-300 p-6 rounded-xl">
             <h4 className="font-bold text-lg text-gray-900 mb-4">Business Relationships</h4>
             
-            <FormSelect 
+            <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Is your business co-located with any other business?" 
               field="colocated" 
               options={['No', 'Yes']} 
             />
             {formData.colocated === 'Yes' && (
-              <FormTextarea 
+              <FormTextarea formData={formData} updateFormData={updateFormData} errors={errors} 
                 label="Explain the co-location arrangement" 
                 field="colocationExplanation" 
                 placeholder="Describe the relationship, shared resources, etc..."
@@ -698,13 +699,13 @@ const UCAFormFiller = () => {
               />
             )}
 
-            <FormSelect 
+            <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Do you have ownership interest in any other business?" 
               field="otherOwnership" 
               options={['No', 'Yes']} 
             />
             {formData.otherOwnership === 'Yes' && (
-              <FormTextarea 
+              <FormTextarea formData={formData} updateFormData={updateFormData} errors={errors} 
                 label="Explain your other business ownership" 
                 field="otherOwnershipExplanation" 
                 placeholder="List other businesses and your ownership percentage..."
@@ -728,29 +729,29 @@ const UCAFormFiller = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <FormInput label="Owner Full Name" field="ownerFullName" required placeholder="Jane Doe" />
-            <FormInput label="Owner Title/Position" field="ownerTitle" placeholder="President / Owner" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Owner Full Name" field="ownerFullName" required placeholder="Jane Doe" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Owner Title/Position" field="ownerTitle" placeholder="President / Owner" />
           </div>
 
-          <FormInput label="Owner Home Phone" field="ownerHomePhone" type="tel" placeholder="(555) 123-4567" />
+          <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Owner Home Phone" field="ownerHomePhone" type="tel" placeholder="(555) 123-4567" />
 
           <div className="bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
             <h4 className="font-bold text-lg text-gray-900 mb-4">Owner's Home Address</h4>
-            <FormInput label="Street Address" field="ownerStreetAddress" placeholder="456 Oak Avenue" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Street Address" field="ownerStreetAddress" placeholder="456 Oak Avenue" />
             <div className="grid md:grid-cols-3 gap-6">
-              <FormInput label="City" field="ownerCity" placeholder="Los Angeles" />
-              <FormInput label="State" field="ownerState" placeholder="CA" />
-              <FormInput label="ZIP Code" field="ownerZip" placeholder="90001" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="City" field="ownerCity" placeholder="Los Angeles" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="State" field="ownerState" placeholder="CA" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="ZIP Code" field="ownerZip" placeholder="90001" />
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <FormSelect 
+            <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Owner Gender" 
               field="ownerSex" 
               options={['', 'Male', 'Female', 'Non-Binary', 'Prefer not to say']} 
             />
-            <FormSelect 
+            <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Owner Residency Status" 
               field="ownerResidency" 
               options={['US Citizen', 'Permanent Resident', 'Other']} 
@@ -760,13 +761,13 @@ const UCAFormFiller = () => {
           <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-xl border-2 border-blue-200">
             <h4 className="font-bold text-xl text-gray-900 mb-4">Ownership Details</h4>
             <div className="grid md:grid-cols-2 gap-6">
-              <FormInput 
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
                 label="Years as Owner" 
                 field="yearsAsOwner" 
                 type="number" 
                 placeholder="5" 
               />
-              <FormInput 
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
                 label="Percentage Owned" 
                 field="percentageOwned" 
                 required 
@@ -774,8 +775,8 @@ const UCAFormFiller = () => {
               />
             </div>
             <div className="grid md:grid-cols-2 gap-6">
-              <FormInput label="Class of Stock (if applicable)" field="classOfStock" placeholder="Common" />
-              <FormInput label="Date Ownership Acquired" field="dateAcquired" type="date" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Class of Stock (if applicable)" field="classOfStock" placeholder="Common" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Date Ownership Acquired" field="dateAcquired" type="date" />
             </div>
           </div>
 
@@ -785,14 +786,14 @@ const UCAFormFiller = () => {
               Owner's Investment in Business
             </h4>
             <div className="grid md:grid-cols-2 gap-6">
-              <FormInput label="Cash Investment" field="cashInvestment" placeholder="$50,000" />
-              <FormInput label="Real Estate Investment" field="realEstateInvestment" placeholder="$0" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Cash Investment" field="cashInvestment" placeholder="$50,000" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Real Estate Investment" field="realEstateInvestment" placeholder="$0" />
             </div>
             <div className="grid md:grid-cols-2 gap-6">
-              <FormInput label="Equipment Investment" field="equipmentInvestment" placeholder="$25,000" />
-              <FormInput label="Other Investment" field="otherInvestment" placeholder="$0" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Equipment Investment" field="equipmentInvestment" placeholder="$25,000" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Other Investment" field="otherInvestment" placeholder="$0" />
             </div>
-            <FormTextarea 
+            <FormTextarea formData={formData} updateFormData={updateFormData} errors={errors} 
               label="How was ownership acquired?" 
               field="acquisitionMethod" 
               placeholder="e.g., Started business from scratch, purchased from previous owner, inherited, etc..."
@@ -800,7 +801,7 @@ const UCAFormFiller = () => {
             />
           </div>
 
-          <FormTextarea 
+          <FormTextarea formData={formData} updateFormData={updateFormData} errors={errors} 
             label="Familial Relationships with Other Business Owners" 
             field="familialRelationships" 
             placeholder="List any family members involved in this or related businesses..."
@@ -808,13 +809,13 @@ const UCAFormFiller = () => {
           />
 
           <div className="bg-yellow-50 border-2 border-yellow-300 p-6 rounded-xl">
-            <FormSelect 
+            <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Does the owner have ownership in other businesses?" 
               field="ownerOtherBusiness" 
               options={['No', 'Yes']} 
             />
             {formData.ownerOtherBusiness === 'Yes' && (
-              <FormTextarea 
+              <FormTextarea formData={formData} updateFormData={updateFormData} errors={errors} 
                 label="Provide details about other business ownership" 
                 field="ownerOtherBusinessDetails" 
                 placeholder="List business names, ownership percentages, and relationship to this business..."
@@ -823,7 +824,7 @@ const UCAFormFiller = () => {
             )}
           </div>
 
-          <FormInput 
+          <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
             label="Owner's Personal Net Worth" 
             field="personalNetWorth" 
             placeholder="$250,000" 
@@ -845,14 +846,14 @@ const UCAFormFiller = () => {
 
           <div className="bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
             <h4 className="font-bold text-lg text-gray-900 mb-4">Primary Banking Information</h4>
-            <FormInput label="Bank Name" field="bankName" placeholder="First National Bank" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Bank Name" field="bankName" placeholder="First National Bank" />
             <div className="grid md:grid-cols-2 gap-6">
-              <FormInput label="Bank City" field="bankCity" placeholder="Los Angeles" />
-              <FormInput label="Bank State" field="bankState" placeholder="CA" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Bank City" field="bankCity" placeholder="Los Angeles" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Bank State" field="bankState" placeholder="CA" />
             </div>
           </div>
 
-          <FormTextarea 
+          <FormTextarea formData={formData} updateFormData={updateFormData} errors={errors} 
             label="Who has authority to sign checks?" 
             field="checkSigners" 
             placeholder="List all individuals authorized to sign checks for the business..."
@@ -862,12 +863,12 @@ const UCAFormFiller = () => {
           <div className="bg-blue-50 p-6 rounded-xl border-2 border-blue-200">
             <h4 className="font-bold text-lg text-gray-900 mb-4">Bonding Capacity</h4>
             <div className="grid md:grid-cols-2 gap-6">
-              <FormInput 
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
                 label="Aggregate Bonding Capacity" 
                 field="bondingAggregate" 
                 placeholder="$1,000,000" 
               />
-              <FormInput 
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
                 label="Single Project Bonding Capacity" 
                 field="bondingProject" 
                 placeholder="$500,000" 

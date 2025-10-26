@@ -5,6 +5,57 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } fro
 import { saveAs } from 'file-saver';
 import { Helmet } from 'react-helmet-async';
 
+// Form component definitions (moved outside to prevent re-creation on each render)
+const FormInput = ({ label, field, formData, updateFormData, errors, type = "text", required = false, placeholder = "", rows = 3 }) => (
+  <div className="mb-6">
+    <label className="block text-sm font-bold text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    {type === "textarea" ? (
+      <textarea
+        value={formData[field] || ''}
+        onChange={(e) => updateFormData(field, e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+          errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+        }`}
+      />
+    ) : (
+      <input
+        type={type}
+        value={formData[field] || ''}
+        onChange={(e) => updateFormData(field, e.target.value)}
+        placeholder={placeholder}
+        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+          errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+        }`}
+      />
+    )}
+    {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
+  </div>
+);
+
+const FormSelect = ({ label, field, formData, updateFormData, errors, options, required = false }) => (
+  <div className="mb-6">
+    <label className="block text-sm font-bold text-gray-700 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <select
+      value={formData[field] || ''}
+      onChange={(e) => updateFormData(field, e.target.value)}
+      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+        errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
+      }`}
+    >
+      {options.map((opt, idx) => (
+        <option key={idx} value={opt}>{opt}</option>
+      ))}
+    </select>
+    {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
+  </div>
+);
+
 const DBENarrativePro = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -108,7 +159,7 @@ const DBENarrativePro = () => {
     trackEvent('step_view', {
       step_number: newStep + 1,
       step_name: stepName,
-      total_steps: steps.length
+      total_steps: 5 // Total steps in the form
     });
   };
 
@@ -226,7 +277,8 @@ const DBENarrativePro = () => {
   // Track step changes
   useEffect(() => {
     if (step > 0) {
-      trackStepChange(step, steps[step].title);
+      const stepNames = ['Welcome', 'Business Info', 'Social Disadvantage', 'Economic Disadvantage', 'Review & Generate'];
+      trackStepChange(step, stepNames[step] || 'Unknown Step');
     }
   }, [step]);
 
@@ -718,57 +770,6 @@ const DBENarrativePro = () => {
 
   const checkoutUrl = LEMON_SQUEEZY_CHECKOUT_URL;
 
-  // Reusable form components
-  const FormInput = ({ label, field, type = "text", required = false, placeholder = "", rows = 3 }) => (
-    <div className="mb-6">
-      <label className="block text-sm font-bold text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      {type === "textarea" ? (
-        <textarea
-          value={formData[field] || ''}
-          onChange={(e) => updateFormData(field, e.target.value)}
-          placeholder={placeholder}
-          rows={rows}
-          className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-            errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
-          }`}
-        />
-      ) : (
-        <input
-          type={type}
-          value={formData[field] || ''}
-          onChange={(e) => updateFormData(field, e.target.value)}
-          placeholder={placeholder}
-          className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-            errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
-          }`}
-        />
-      )}
-      {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
-    </div>
-  );
-
-  const FormSelect = ({ label, field, options, required = false }) => (
-    <div className="mb-6">
-      <label className="block text-sm font-bold text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <select
-        value={formData[field] || ''}
-        onChange={(e) => updateFormData(field, e.target.value)}
-        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-          errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-blue-300'
-        }`}
-      >
-        {options.map((opt, idx) => (
-          <option key={idx} value={opt}>{opt}</option>
-        ))}
-      </select>
-      {errors[field] && <p className="text-red-500 text-sm mt-1 font-semibold">{errors[field]}</p>}
-    </div>
-  );
-
   const steps = [
     {
       title: 'Welcome',
@@ -952,20 +953,20 @@ const DBENarrativePro = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <FormInput label="Company Name" field="companyName" required placeholder="ABC Construction LLC" />
-            <FormInput label="Your Full Name" field="ownerName" required placeholder="John Smith" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Company Name" field="companyName" required placeholder="ABC Construction LLC" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Your Full Name" field="ownerName" required placeholder="John Smith" />
           </div>
 
-          <FormInput label="Industry/Specialization" field="industry" required placeholder="Heavy Highway Construction, Electrical Contracting, etc." />
+          <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Industry/Specialization" field="industry" required placeholder="Heavy Highway Construction, Electrical Contracting, etc." />
 
           <div className="grid md:grid-cols-2 gap-6">
-            <FormInput label="Years in Business" field="yearsInBusiness" type="number" required placeholder="8" />
-            <FormInput label="Annual Revenue" field="annualRevenue" required placeholder="1250000" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Years in Business" field="yearsInBusiness" type="number" required placeholder="8" />
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Annual Revenue" field="annualRevenue" required placeholder="1250000" />
           </div>
 
-          <FormInput label="Primary Business Location" field="location" required placeholder="123 Main St, Sacramento, CA 95814" />
+          <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Primary Business Location" field="location" required placeholder="123 Main St, Sacramento, CA 95814" />
 
-          <FormSelect 
+          <FormSelect formData={formData} updateFormData={updateFormData} errors={errors} 
             label="Your UCP (Unified Certification Program)" 
             field="ucpSelection" 
             options={['', ...ucpList]} 
@@ -974,7 +975,7 @@ const DBENarrativePro = () => {
 
           {formData.ucpSelection === 'Other/Custom UCP' && (
             <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-xl">
-              <FormInput label="Enter UCP Name" field="customUCP" required placeholder="Your UCP Name" />
+              <FormInput formData={formData} updateFormData={updateFormData} errors={errors} label="Enter UCP Name" field="customUCP" required placeholder="Your UCP Name" />
             </div>
           )}
         </div>
@@ -1083,7 +1084,7 @@ const DBENarrativePro = () => {
           </div>
 
           <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
-            <FormInput 
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Financing Barriers" 
               field="financingBarriers" 
               type="textarea" 
@@ -1094,7 +1095,7 @@ const DBENarrativePro = () => {
           </div>
 
           <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
-            <FormInput 
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Bonding Challenges" 
               field="bondingChallenges" 
               type="textarea" 
@@ -1104,7 +1105,7 @@ const DBENarrativePro = () => {
           </div>
 
           <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
-            <FormInput 
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Insurance Challenges" 
               field="insuranceChallenges" 
               type="textarea" 
@@ -1114,7 +1115,7 @@ const DBENarrativePro = () => {
           </div>
 
           <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
-            <FormInput 
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Contract Losses Due to Disadvantage" 
               field="contractLosses" 
               type="textarea" 
@@ -1125,7 +1126,7 @@ const DBENarrativePro = () => {
           </div>
 
           <div className="bg-white border-2 border-gray-200 p-6 rounded-xl">
-            <FormInput 
+            <FormInput formData={formData} updateFormData={updateFormData} errors={errors} 
               label="Market Disadvantages" 
               field="marketDisadvantages" 
               type="textarea" 
