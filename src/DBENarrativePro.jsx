@@ -1295,21 +1295,16 @@ const DBENarrativePro = () => {
                     <p className="text-green-600 font-bold mt-2">Save $1,500-3,000 vs hiring a consultant</p>
                   </div>
 
-                  <button
-                    onClick={() => {
+                  <a
+                    href={checkoutUrl}
+                    onClick={(e) => {
                       trackPaymentInitiated();
-                      if (window.LemonSqueezy) {
-                        window.LemonSqueezy.Url.Open(checkoutUrl);
-                      } else {
-                        window.open(checkoutUrl, '_blank');
-                      }
                     }}
-                    disabled={!lsReady}
-                    className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-5 px-12 rounded-xl text-xl shadow-2xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="lemonsqueezy-button inline-flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-5 px-12 rounded-xl text-xl shadow-2xl transition-all transform hover:scale-105"
                   >
                     <CreditCard size={28} />
-                    {lsReady ? 'Unlock Documents - Pay $149' : 'Loading Payment System...'}
-                  </button>
+                    Unlock Documents - Pay $149
+                  </a>
 
                   <p className="text-gray-600 text-sm mt-6">
                     Secure checkout powered by Lemon Squeezy • Instant download after payment
