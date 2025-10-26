@@ -93,11 +93,8 @@ const DBENarrativePro = () => {
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
-  // Build checkout URL with success redirect
-  const baseCheckoutUrl = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1";
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const successUrl = currentUrl.split('?')[0] + '?payment=success';
-  const LEMON_SQUEEZY_CHECKOUT_URL = `${baseCheckoutUrl}?embed=1&checkout[custom][success_url]=${encodeURIComponent(successUrl)}`;
+  // SUPER SIMPLE - Matches Lemon Squeezy official example exactly
+  const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1?embed=1";
   const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4"; // TODO: Replace with your GA4 Measurement ID
   // ============================================
 
@@ -1298,7 +1295,15 @@ const DBENarrativePro = () => {
                   <a
                     href={checkoutUrl}
                     onClick={(e) => {
+                      e.preventDefault(); // Prevent default link behavior
                       trackPaymentInitiated();
+                      // Force overlay using API
+                      if (window.LemonSqueezy) {
+                        window.LemonSqueezy.Url.Open(checkoutUrl);
+                      } else {
+                        // Fallback: open link normally if script not loaded
+                        window.location.href = checkoutUrl;
+                      }
                     }}
                     className="lemonsqueezy-button inline-flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-5 px-12 rounded-xl text-xl shadow-2xl transition-all transform hover:scale-105"
                   >
