@@ -97,7 +97,7 @@ const HomePage = () => {
   ];
 
   const stats = [
-    { number: "10K+", label: "Applications Filed", icon: FileText },
+    { number: "350+", label: "Narratives Created", icon: FileText },
     { number: "95%", label: "Success Rate", icon: TrendingUp },
     { number: "4.9/5", label: "User Rating", icon: Star },
     { number: "24/7", label: "Support Available", icon: Clock }
