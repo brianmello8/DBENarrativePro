@@ -92,7 +92,7 @@ const HomePage = () => {
     },
     {
       question: "How does DBE Narrative Pro help with the new requirements?",
-      answer: "Our free UCA form filler helps you complete the official application. Our AI-powered Narrative Pro ($149) helps you create the detailed narrative statement required under the new regulations, including specific incidents and economic barriers documentation—all for a fraction of consultant costs ($1,500-3,000)."
+      answer: "Our free UCA form filler helps you complete the official application. Our AI-powered Narrative Pro ($149) helps you create the detailed narrative statement required under the new regulations, including specific incidents and economic barriers documentation—all for a fraction of consultant costs ($1,500-3,000) Let us help you!."
     }
   ];
 
