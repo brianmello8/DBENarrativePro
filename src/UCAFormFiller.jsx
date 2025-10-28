@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, ArrowUp, ChevronLeft, ChevronRight, CheckCircle, Plus, Trash2, AlertCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Textarea } from '@/Components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { Alert, AlertDescription } from '@/Components/ui/alert';
 import { fillAndDownloadPDF } from '@/utils/pdfFiller';
 
 const UCAFormFiller = () => {
