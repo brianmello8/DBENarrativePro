@@ -90,6 +90,13 @@ const DBENarrativePro = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [lsReady, setLsReady] = useState(false);
+  const [autoDownloadAttempted, setAutoDownloadAttempted] = useState(false);
+  
+  // Streaming preview states
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamedContent, setStreamedContent] = useState('');
+  const [streamProgress, setStreamProgress] = useState(0);
+  const [streamStatus, setStreamStatus] = useState('');
   
   // Validation and error states
   const [errors, setErrors] = useState({});
@@ -289,6 +296,9 @@ const DBENarrativePro = () => {
 
     const handlePaymentSuccess = (event) => {
       console.log('✅ Payment success event received:', event);
+      console.log('📦 generatedDocs available:', !!generatedDocs);
+      console.log('📦 generatedDocs keys:', generatedDocs ? Object.keys(generatedDocs) : 'none');
+      
       setIsPaid(true);
       localStorage.setItem('dbeNarrativePaid', 'true');
       console.log('💳 Payment status saved to localStorage');
@@ -296,11 +306,22 @@ const DBENarrativePro = () => {
       
       // Automatically download all documents after payment
       setTimeout(() => {
-        if (generatedDocs) {
-          downloadAllDocuments();
-          alert('✅ Payment successful! Your documents are downloading automatically.');
+        const docs = generatedDocs || JSON.parse(localStorage.getItem('dbeNarrativeGeneratedDocs') || 'null');
+        console.log('📥 Attempting auto-download. Docs available:', !!docs);
+        
+        if (docs) {
+          try {
+            setAutoDownloadAttempted(true);
+            console.log('📥 Calling downloadAllDocuments...');
+            downloadAllDocuments();
+            alert('✅ Payment successful! Your documents are downloading automatically.');
+          } catch (error) {
+            console.error('❌ Auto-download failed:', error);
+            alert('✅ Payment successful! Click "Download All Documents" button below to get your files.');
+          }
         } else {
-          alert('✅ Payment successful! Your documents are now unlocked.');
+          console.warn('⚠️ No documents available for download');
+          alert('✅ Payment successful! Please refresh the page if documents do not appear.');
         }
       }, 500);
     };
@@ -310,7 +331,7 @@ const DBENarrativePro = () => {
     return () => {
       window.removeEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
     };
-  }, [lsReady, generatedDocs]);
+  }, [lsReady, generatedDocs, downloadAllDocuments]);
 
   const handlePayment = () => {
     if (!lsReady) {
@@ -491,37 +512,76 @@ const DBENarrativePro = () => {
 
   const generateDocuments = async () => {
     setIsGenerating(true);
+    setIsStreaming(true);
     setError(null);
+    setStreamedContent('');
+    setStreamProgress(0);
+    setStreamStatus('Initializing...');
     trackGenerationStart();
     
     try {
-      setGenerationProgress('🤖 AI analyzing your information...');
-      
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formData })
+        body: JSON.stringify({ formData, stream: true })
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Generation failed');
+        throw new Error('Generation failed');
       }
 
-      setGenerationProgress('📝 Crafting your narrative...');
-      const data = await response.json();
-      
-      setGenerationProgress('✅ Documents generated successfully!');
-      setGeneratedDocs(data);
-      localStorage.setItem('dbeNarrativeGeneratedDocs', JSON.stringify(data));
-      console.log('📄 Documents saved to localStorage');
-      trackGenerationComplete();
-      
-      setTimeout(() => setGenerationProgress(''), 2000);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'content') {
+                // Streaming narrative content
+                setStreamedContent(prev => prev + data.chunk);
+                setStreamProgress(prev => Math.min(prev + 0.5, 90));
+                setStreamStatus('Writing your narrative...');
+              } else if (data.type === 'preview_complete') {
+                // Preview sections complete
+                setStreamStatus('✅ Preview complete! Generating remaining sections...');
+                setStreamProgress(90);
+              } else if (data.type === 'generating_other_docs') {
+                // Generating other documents
+                setStreamStatus('📄 Generating cover letter, checklist, and review summary...');
+                setStreamProgress(95);
+              } else if (data.type === 'complete') {
+                // All documents complete
+                setIsStreaming(false);
+                setStreamProgress(100);
+                setStreamStatus('✅ All documents generated successfully!');
+                setGeneratedDocs(data.documents);
+                localStorage.setItem('dbeNarrativeGeneratedDocs', JSON.stringify(data.documents));
+                console.log('📄 Documents saved to localStorage');
+                trackGenerationComplete();
+                setTimeout(() => setStreamStatus(''), 2000);
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error('Generation error:', err);
       setError(err.message);
       trackGenerationError(err.message);
+      setIsStreaming(false);
     } finally {
       setIsGenerating(false);
     }
@@ -1161,6 +1221,42 @@ const DBENarrativePro = () => {
         <div className="space-y-6">
           {!generatedDocs ? (
             <>
+              {/* Streaming Preview */}
+              {isStreaming && streamedContent && (
+                <div className="bg-white border-2 border-blue-300 rounded-xl p-6 mb-6 shadow-lg">
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-bold text-blue-900">
+                        📝 Your Narrative Preview
+                      </h3>
+                      <span className="text-sm font-semibold text-blue-600">
+                        {Math.round(streamProgress)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-300"
+                        style={{ width: `${streamProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {streamStatus}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 max-h-96 overflow-y-auto">
+                    <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                      {streamedContent}
+                      {isStreaming && <span className="inline-block w-2 h-5 bg-blue-600 animate-pulse ml-1">▊</span>}
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mt-3 text-center">
+                    Showing preview of first two sections • Full document available after purchase
+                  </p>
+                </div>
+              )}
+
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 p-8 rounded-xl text-center">
                 <Sparkles className="mx-auto mb-4 text-blue-600" size={48} />
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">
@@ -1303,13 +1399,24 @@ const DBENarrativePro = () => {
                 )}
 
                 {isPaid && (
-                  <button
-                    onClick={downloadAllDocuments}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg flex items-center gap-3 mx-auto transition-all transform hover:scale-105 shadow-xl mb-6"
-                  >
-                    <Download size={24} />
-                    Download All Documents
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        console.log('📥 Manual download triggered');
+                        console.log('📦 generatedDocs:', !!generatedDocs);
+                        downloadAllDocuments();
+                      }}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg flex items-center gap-3 mx-auto transition-all transform hover:scale-105 shadow-xl mb-6"
+                    >
+                      <Download size={24} />
+                      Download All Documents
+                    </button>
+                    {!autoDownloadAttempted && (
+                      <p className="text-amber-600 text-sm font-semibold mb-4">
+                        ⚠️ If downloads didn't start automatically, click the button above.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 

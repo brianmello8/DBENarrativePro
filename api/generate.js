@@ -17,7 +17,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { formData } = req.body;
+    const { formData, stream } = req.body;
+    const shouldStream = stream === true;
 
     if (!formData) {
       return res.status(400).json({ error: 'No form data provided' });
@@ -377,14 +378,68 @@ CRITICAL WRITING GUIDELINES - YOU MUST FOLLOW THESE:
 Generate the complete, professional narrative now, ensuring full 2025 IFR compliance:`;
 
     // Generate the main narrative
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 16000,
-      temperature: 0.8,
-      messages: [{ role: "user", content: prompt }]
-    });
+    let narrative = '';
+    
+    if (shouldStream) {
+      // Streaming mode for frontend preview
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      const stream = await anthropic.messages.stream({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 16000,
+        temperature: 0.8,
+        messages: [{ role: "user", content: prompt }]
+      });
+      
+      let streamedPreview = '';
+      let sectionCount = 0;
+      let stopStreaming = false;
+      
+      for await (const chunk of stream) {
+        if (chunk.type === 'content_block_delta') {
+          const text = chunk.delta.text || '';
+          narrative += text;
+          
+          // Only stream until we hit Section III
+          if (!stopStreaming) {
+            streamedPreview += text;
+            
+            // Send chunk to client
+            res.write(`data: ${JSON.stringify({ chunk: text, type: 'content' })}
 
-    const narrative = message.content[0].text;
+`);
+            
+            // Count sections to stop at Section II
+            if (text.includes('I.')) sectionCount = Math.max(sectionCount, 1);
+            if (text.includes('II.')) sectionCount = Math.max(sectionCount, 2);
+            if (text.includes('III.') || sectionCount >= 2 && narrative.length > 3000) {
+              stopStreaming = true;
+              res.write(`data: ${JSON.stringify({ type: 'preview_complete' })}
+
+`);
+            }
+          }
+        }
+      }
+      
+      // Notify that we're continuing with other documents
+      res.write(`data: ${JSON.stringify({ type: 'generating_other_docs' })}
+
+`);
+      
+    } else {
+      // Non-streaming mode (existing behavior)
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 16000,
+        temperature: 0.8,
+        messages: [{ role: "user", content: prompt }]
+      });
+      
+      narrative = message.content[0].text;
+    }
 
     // Generate cover letter
     const coverPrompt = `You are a professional business consultant. Generate a formal, compelling cover letter for ${formData.ownerName}, owner of ${formData.companyName}, submitting their DBE recertification application under the NEW October 2025 Interim Final Rule to ${formData.ucpSelection === 'Other (specify below)' ? formData.customUCP : formData.ucpSelection}.
@@ -765,13 +820,31 @@ For questions about DBE regulations or the 2025 IFR:
 
 ═══════════════════════════════════════════════════════════════`;
 
-    return res.status(200).json({
-      coverLetter,
-      narrative,
-      checklist,
-      reviewSummary,
-      preview: narrative.substring(0, 1500) + '\n\n[... Preview shows first portion of narrative. Complete package includes 4 professional documents totaling 15-20 pages. Purchase for $149 to unlock full access ...]'
-    });
+    if (shouldStream) {
+      // Send final documents via SSE
+      res.write(`data: ${JSON.stringify({
+        type: 'complete',
+        documents: {
+          coverLetter,
+          narrative,
+          checklist,
+          reviewSummary,
+          preview: narrative.substring(0, 1500)
+        }
+      })}
+
+`);
+      res.end();
+    } else {
+      // Regular JSON response
+      return res.status(200).json({
+        coverLetter,
+        narrative,
+        checklist,
+        reviewSummary,
+        preview: narrative.substring(0, 1500) + '\n\n[... Preview shows first portion of narrative. Complete package includes 4 professional documents totaling 15-20 pages. Purchase for $149 to unlock full access ...]'
+      });
+    }
 
   } catch (error) {
     console.error('Generate error:', error);
