@@ -290,17 +290,19 @@ const DBENarrativePro = () => {
     const handlePaymentSuccess = (event) => {
       console.log('✅ Payment success event received:', event);
       setIsPaid(true);
+      localStorage.setItem('dbeNarrativePaid', 'true');
+      console.log('💳 Payment status saved to localStorage');
       trackPaymentSuccess();
       
       // Automatically download all documents after payment
       setTimeout(() => {
         if (generatedDocs) {
           downloadAllDocuments();
-          alert('✅ Payment successful! Your documents are now downloading automatically.');
+          alert('✅ Payment successful! Your documents are downloading automatically.');
         } else {
-          alert('✅ Payment successful! Your documents are now unlocked. You can download them below.');
+          alert('✅ Payment successful! Your documents are now unlocked.');
         }
-      }, 500); // Small delay to ensure state is updated
+      }, 500);
     };
 
     window.addEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
@@ -434,6 +436,24 @@ const DBENarrativePro = () => {
     if (savedDraft) {
       setSavedDraftAvailable(true);
     }
+    
+    // Load payment status from localStorage
+    const savedPaymentStatus = localStorage.getItem('dbeNarrativePaid');
+    if (savedPaymentStatus === 'true') {
+      setIsPaid(true);
+      console.log('💳 Payment status loaded from localStorage');
+    }
+    
+    // Load generated documents from localStorage
+    const savedDocs = localStorage.getItem('dbeNarrativeGeneratedDocs');
+    if (savedDocs) {
+      try {
+        setGeneratedDocs(JSON.parse(savedDocs));
+        console.log('📄 Generated documents loaded from localStorage');
+      } catch (e) {
+        console.error('Error loading saved documents:', e);
+      }
+    }
   }, []);
 
   // AUTO-SAVE: Save draft whenever formData changes (and user has started the form)
@@ -456,8 +476,13 @@ const DBENarrativePro = () => {
 
   const clearDraft = () => {
     localStorage.removeItem('dbeNarrativeDraft');
+    localStorage.removeItem('dbeNarrativePaid');
+    localStorage.removeItem('dbeNarrativeGeneratedDocs');
     setSavedDraftAvailable(false);
+    setIsPaid(false);
+    setGeneratedDocs(null);
     trackDraftClear();
+    console.log('🧹 All data cleared from localStorage');
   };
 
   // ==========================================
@@ -488,6 +513,8 @@ const DBENarrativePro = () => {
       
       setGenerationProgress('✅ Documents generated successfully!');
       setGeneratedDocs(data);
+      localStorage.setItem('dbeNarrativeGeneratedDocs', JSON.stringify(data));
+      console.log('📄 Documents saved to localStorage');
       trackGenerationComplete();
       
       setTimeout(() => setGenerationProgress(''), 2000);
