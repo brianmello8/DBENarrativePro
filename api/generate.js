@@ -120,11 +120,14 @@ ${formData.specificExamples || 'None provided'}
 AVAILABLE DOCUMENTATION:
 ${formData.documentation || 'To be gathered'}
 
-═══════════════════════════════════════════════════════════════════
 
 YOUR TASK: Generate a complete DBE narrative statement following this EXACT structure:
 
-════════════════════════════════════════════════════════════════
+CRITICAL FORMATTING INSTRUCTION:
+Do NOT include any separator lines (such as ====, ═══, ----, etc.) in your output.
+Use only section headers and body text. Each section should flow naturally with proper paragraphs.
+Write in professional prose format with clear paragraph breaks between ideas.
+
 NARRATIVE STATEMENT OF SOCIAL AND ECONOMIC DISADVANTAGE
 Per 49 CFR Part 26, Interim Final Rule (October 2025)
 
@@ -137,7 +140,6 @@ I, ${formData.ownerName}, hereby submit this narrative statement demonstrating s
 
 Under the new regulations, I am required to demonstrate disadvantage through individualized evidence without relying on presumptions based on group membership. This narrative documents specific barriers and their measurable economic impacts across my entire life - from childhood through my current business operations.
 
-════════════════════════════════════════════════════════════════
 
 I. EXECUTIVE SUMMARY
 
@@ -156,7 +158,6 @@ Use language like:
 - "The cumulative effect of these barriers, documented with specific dates, amounts, and evidence, has resulted in..."
 - "Compared to similarly situated businesses in [industry], my firm operates at [X]% of expected revenue due to the documented barriers detailed herein..."]
 
-════════════════════════════════════════════════════════════════
 
 II. CHILDHOOD AND FAMILY ECONOMIC BACKGROUND
 
@@ -172,7 +173,6 @@ II. CHILDHOOD AND FAMILY ECONOMIC BACKGROUND
 
 Transform provided information into a compelling narrative. If details are sparse, enhance with realistic specifics while staying true to the core facts.]
 
-════════════════════════════════════════════════════════════════
 
 III. EDUCATIONAL BARRIERS AND IMPACT
 
@@ -189,7 +189,6 @@ III. EDUCATIONAL BARRIERS AND IMPACT
 
 Transform provided information into a compelling narrative showing how educational barriers created a systematic disadvantage that continues to impact business success.]
 
-════════════════════════════════════════════════════════════════
 
 IV. EMPLOYMENT HISTORY AND WORKPLACE BARRIERS
 
@@ -211,7 +210,6 @@ For each incident, describe:
 
 Build a pattern showing this wasn't isolated bad luck, but systematic barriers.]
 
-════════════════════════════════════════════════════════════════
 
 V. BUSINESS FORMATION AND SYSTEMATIC BARRIERS
 
@@ -254,7 +252,6 @@ Use powerful professional language:
 
 CRITICAL: Transform vague descriptions into specific, compelling narratives. If the provided description is brief, enhance it with plausible specifics and professional language while staying true to the core facts. Make every incident count - these are the heart of the social disadvantage claim.]
 
-════════════════════════════════════════════════════════════════
 
 VI. ECONOMIC DISADVANTAGE DOCUMENTATION
 
@@ -293,7 +290,6 @@ D. MARKET POSITION AND REVENUE CONSTRAINTS
 - Attribution to documented barriers above
 Example: "With [X] years of experience, [licenses/certifications], and demonstrated capability to complete [type] projects, comparable firms in this market average $[Y]-$[Z] in annual revenue. My actual revenue of $${formData.annualRevenue} represents a gap of $[A]-$[B], directly attributable to the financing barriers (costing approximately $[C] annually), bonding limitations (preventing access to approximately $[D] in annual opportunities), and systematic contract losses documented above (approximately $[E] in lost revenue over [X] years)..."]
 
-════════════════════════════════════════════════════════════════
 
 VII. SUPPORTING DOCUMENTATION
 
@@ -320,7 +316,6 @@ ECONOMIC DISADVANTAGE DOCUMENTATION:
 
 Reference the checklist document for complete documentation requirements.]
 
-════════════════════════════════════════════════════════════════
 
 VIII. CONCLUSION
 
@@ -348,7 +343,6 @@ _________________________________
 ${formData.ownerName}
 Owner, ${formData.companyName}
 
-════════════════════════════════════════════════════════════════
 
 CRITICAL WRITING GUIDELINES - YOU MUST FOLLOW THESE:
 
@@ -379,7 +373,6 @@ CRITICAL WRITING GUIDELINES - YOU MUST FOLLOW THESE:
 
 9. AIM FOR 6-8 pages of substantive, compelling content with proper section headers
 
-10. Use the ════ dividers shown above for section breaks
 
 Generate the complete, professional narrative now, ensuring full 2025 IFR compliance:`;
 
@@ -435,7 +428,6 @@ Applicant: ${formData.ownerName}
 Date: ${today}
 UCP: ${formData.ucpSelection === 'Other (specify below)' ? formData.customUCP : formData.ucpSelection}
 
-════════════════════════════════════════════════════════════════
 
 REQUIRED DOCUMENTS - Please ensure all items are included:
 
@@ -510,7 +502,6 @@ REQUIRED DOCUMENTS - Please ensure all items are included:
    • Any additional evidence supporting disadvantage claims
    • Resume or biography of owner demonstrating qualifications
 
-════════════════════════════════════════════════════════════════
 
 SUBMISSION INSTRUCTIONS:
 
@@ -532,7 +523,6 @@ RECOMMENDED SUBMISSION METHOD:
 • If mailing: Certified mail with return receipt requested
 • Keep proof of submission with date stamp
 
-════════════════════════════════════════════════════════════════
 
 IMPORTANT NOTES - 2025 IFR REQUIREMENTS:
 
@@ -554,7 +544,6 @@ CONTACT YOUR UCP IF:
 • You need assistance gathering documentation
 • You want to confirm submission procedures
 
-════════════════════════════════════════════════════════════════
 
 TIMELINE EXPECTATIONS:
 
@@ -574,7 +563,6 @@ If your application is denied:
 • Keep all correspondence and documentation
 • Note: US DOT appeals may be delayed due to administrative backlog
 
-════════════════════════════════════════════════════════════════
 
 Document prepared by: DBE Narrative Pro
 Preparation Date: ${today}
@@ -589,7 +577,6 @@ Application for: ${formData.companyName}
 Prepared by: DBE Narrative Pro
 Date: ${today}
 
-════════════════════════════════════════════════════════════════
 
 APPLICANT INFORMATION:
 ✓ Business Name: ${formData.companyName}
@@ -628,7 +615,6 @@ DOCUMENT PACKAGE COMPLETE:
 ✓ Evidence Checklist (with PNW requirement highlighted)
 ✓ Review Summary (this document)
 
-════════════════════════════════════════════════════════════════
 
 CRITICAL 2025 IFR REMINDERS:
 
@@ -650,7 +636,6 @@ CRITICAL 2025 IFR REMINDERS:
    employment history, and business operations - all required areas under
    the new individual disadvantage demonstration standard.
 
-════════════════════════════════════════════════════════════════
 
 FINAL CHECKLIST BEFORE SUBMISSION:
 
@@ -668,7 +653,6 @@ FINAL CHECKLIST BEFORE SUBMISSION:
 ☐ Submit and obtain proof of submission
 ☐ Calendar follow-up date (10 business days)
 
-════════════════════════════════════════════════════════════════
 
 TIPS FOR STRENGTHENING YOUR APPLICATION:
 
@@ -702,7 +686,6 @@ TIPS FOR STRENGTHENING YOUR APPLICATION:
    • Be responsive to follow-up requests
    • Consider having an attorney review if concerned
 
-════════════════════════════════════════════════════════════════
 
 KEY REGULATORY GUIDANCE FOR 2025 IFR:
 
@@ -729,7 +712,6 @@ KEY REGULATORY GUIDANCE FOR 2025 IFR:
 ✓ THREE CATEGORIES: Educational, Employment, and Business barriers must all
    be documented. Going back to childhood is essential under the new regulations.
 
-════════════════════════════════════════════════════════════════
 
 NEXT STEPS:
 
@@ -746,7 +728,6 @@ NEXT STEPS:
 11. ✓ Follow up within 10 business days to confirm receipt
 12. ✓ Be prepared for follow-up questions or requests for clarification
 
-════════════════════════════════════════════════════════════════
 
 IMPORTANT LEGAL REMINDERS:
 
@@ -772,7 +753,6 @@ Take the time to ensure your application is:
 
 Good luck with your recertification under the new 2025 regulations!
 
-════════════════════════════════════════════════════════════════
 
 Questions about this application package?
 This document package was generated by DBE Narrative Pro
