@@ -331,7 +331,7 @@ const DBENarrativePro = () => {
     return () => {
       window.removeEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
     };
-  }, [lsReady, generatedDocs, downloadAllDocuments]);
+  }, [lsReady, generatedDocs]); // downloadAllDocuments is stable, doesn't need to be in deps
 
   const handlePayment = () => {
     if (!lsReady) {
@@ -1314,7 +1314,42 @@ const DBENarrativePro = () => {
                   )}
                 </button>
 
-                {generationProgress && (
+                {/* Streaming Preview */}
+                {isStreaming && (
+                  <div className="mt-6 bg-white border-2 border-blue-300 rounded-xl p-6 shadow-lg">
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-bold text-blue-900">
+                          📝 {streamStatus}
+                        </h3>
+                        <span className="text-sm font-semibold text-blue-600">
+                          {streamProgress}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${streamProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 max-h-96 overflow-y-auto">
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap font-sans text-gray-900">
+                        {streamedContent}
+                        {streamProgress < 90 && <span className="animate-pulse ml-1">▊</span>}
+                      </div>
+                    </div>
+                    
+                    {streamProgress >= 90 && (
+                      <p className="text-green-600 font-semibold mt-4 text-center">
+                        ✅ Preview complete! Generating remaining sections and documents...
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {generationProgress && !isStreaming && (
                   <p className="text-blue-700 font-semibold mt-4">{generationProgress}</p>
                 )}
 
@@ -1342,9 +1377,27 @@ const DBENarrativePro = () => {
                   ✅ Documents Generated Successfully!
                 </h3>
                 <p className="text-gray-700 mb-6">
-                  Your DBE narrative package is ready to download.
+                  Your complete DBE narrative package has been generated.
                 </p>
+              </div>
 
+              {/* Narrative Preview */}
+              {generatedDocs && generatedDocs.narrative && (
+                <div className="bg-white border-2 border-gray-300 rounded-xl p-6 mb-6">
+                  <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <FileText size={24} className="text-blue-600" />
+                    Personal Narrative Preview
+                  </h4>
+                  <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 max-h-96 overflow-y-auto">
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap font-sans text-gray-900">
+                      {generatedDocs.preview || generatedDocs.narrative.substring(0, 2000)}...
+                      <p className="text-gray-500 italic mt-4">[Complete narrative available after payment]</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-xl mb-6">
                 {!isPaid ? (
                   <div className="bg-blue-50 border-2 border-blue-400 p-6 rounded-xl mb-6">
                     <h4 className="text-xl font-bold text-blue-900 mb-3">
