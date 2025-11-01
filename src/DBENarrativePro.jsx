@@ -291,7 +291,16 @@ const DBENarrativePro = () => {
       console.log('✅ Payment success event received:', event);
       setIsPaid(true);
       trackPaymentSuccess();
-      alert('✅ Payment successful! Your documents are now unlocked. You can download them below.');
+      
+      // Automatically download all documents after payment
+      setTimeout(() => {
+        if (generatedDocs) {
+          downloadAllDocuments();
+          alert('✅ Payment successful! Your documents are now downloading automatically.');
+        } else {
+          alert('✅ Payment successful! Your documents are now unlocked. You can download them below.');
+        }
+      }, 500); // Small delay to ensure state is updated
     };
 
     window.addEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
@@ -299,7 +308,7 @@ const DBENarrativePro = () => {
     return () => {
       window.removeEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
     };
-  }, [lsReady]);
+  }, [lsReady, generatedDocs]);
 
   const handlePayment = () => {
     if (!lsReady) {
