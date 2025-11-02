@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import HomePage from './HomePage';
 import DBENarrativePro from './DBENarrativePro';
 import FAQPage from './FAQPage';
-import DownloadPage from './components/DownloadPage';
+import DownloadPage from './Components/DownloadPage';
 import Analytics from './Analytics';
 import { HelmetProvider } from 'react-helmet-async';
 
