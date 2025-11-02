@@ -106,6 +106,9 @@ const DBENarrativePro = () => {
 
   // Ref for scrolling to download section after payment
   const downloadSectionRef = useRef(null);
+  
+  // Ref to store payment success handler (prevents stale closure in Lemon Squeezy callback)
+  const paymentSuccessHandlerRef = useRef(null);
 
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
@@ -269,6 +272,22 @@ const DBENarrativePro = () => {
   // LEMON SQUEEZY INTEGRATION
   // ==========================================
   
+  // Keep payment handler ref updated with current functions
+  useEffect(() => {
+    paymentSuccessHandlerRef.current = () => {
+      console.log('✅ Payment success detected!');
+      
+      // Update state to trigger re-render and show download buttons
+      setIsPaid(true);
+      localStorage.setItem('dbeNarrativePaid', 'true');
+      console.log('💳 Payment status saved to localStorage');
+      trackPaymentSuccess();
+      
+      // Show success message
+      alert('✅ Payment successful! Your documents are now available for download.');
+    };
+  }, [trackPaymentSuccess]); // Updates when trackPaymentSuccess changes
+  
   useEffect(() => {
     const loadLemonSqueezy = () => {
       const script = document.createElement('script');
@@ -277,6 +296,23 @@ const DBENarrativePro = () => {
       script.onload = () => {
         if (window.createLemonSqueezy) {
           window.createLemonSqueezy();
+          
+          // Setup event handler for payment success
+          if (window.LemonSqueezy) {
+            window.LemonSqueezy.Setup({
+              eventHandler: (event) => {
+                console.log('🍋 Lemon Squeezy event:', event);
+                
+                if (event.event === 'Checkout.Success') {
+                  // Call the current payment handler via ref (avoids stale closure)
+                  if (paymentSuccessHandlerRef.current) {
+                    paymentSuccessHandlerRef.current();
+                  }
+                }
+              }
+            });
+          }
+          
           setLsReady(true);
           console.log('✅ Lemon Squeezy loaded and ready');
         }
@@ -292,30 +328,7 @@ const DBENarrativePro = () => {
 
     const cleanup = loadLemonSqueezy();
     return cleanup;
-  }, []);
-
-  useEffect(() => {
-    if (!lsReady) return;
-
-    const handlePaymentSuccess = (event) => {
-      console.log('✅ Payment success event received:', event);
-      
-      // Update state to trigger re-render and show download buttons
-      setIsPaid(true);
-      localStorage.setItem('dbeNarrativePaid', 'true');
-      console.log('💳 Payment status saved to localStorage');
-      trackPaymentSuccess();
-      
-      // Show success message
-      alert('✅ Payment successful! Your documents are now available for download.');
-    };
-
-    window.addEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
-
-    return () => {
-      window.removeEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
-    };
-  }, [lsReady, trackPaymentSuccess]);
+  }, []); // Only run once on mount
 
   // Auto-download and scroll when payment is completed
   useEffect(() => {
@@ -536,6 +549,9 @@ const DBENarrativePro = () => {
     setStreamStatus('Initializing...');
     trackGenerationStart();
     
+    // Fake progress interval for the long wait after 90%
+    let fakeProgressInterval = null;
+    
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
@@ -570,14 +586,48 @@ const DBENarrativePro = () => {
                 setStreamProgress(prev => Math.min(prev + 0.5, 90));
                 setStreamStatus('Writing your narrative...');
               } else if (data.type === 'preview_complete') {
-                // Preview sections complete
-                setStreamStatus('✅ Preview complete! Generating remaining sections...');
+                // Preview sections complete - now the long wait begins
+                setStreamStatus('✅ Preview complete! Continuing with full narrative...');
                 setStreamProgress(90);
+                
+                // Start fake progress to show activity during long backend process
+                let fakeProgress = 90;
+                const statusMessages = [
+                  '📝 Completing remaining narrative sections...',
+                  '🔍 Adding detailed analysis and evidence...',
+                  '✍️ Finalizing narrative structure...',
+                  '📋 Preparing cover letter...'
+                ];
+                let messageIndex = 0;
+                
+                fakeProgressInterval = setInterval(() => {
+                  fakeProgress = Math.min(fakeProgress + 0.5, 94.5); // Slowly increment to 94.5%
+                  setStreamProgress(fakeProgress);
+                  
+                  // Change status message every 3 seconds
+                  if (Math.random() > 0.7 && messageIndex < statusMessages.length - 1) {
+                    messageIndex++;
+                    setStreamStatus(statusMessages[messageIndex]);
+                  }
+                }, 1000); // Update every second
+                
               } else if (data.type === 'generating_other_docs') {
+                // Clear fake progress interval
+                if (fakeProgressInterval) {
+                  clearInterval(fakeProgressInterval);
+                  fakeProgressInterval = null;
+                }
+                
                 // Generating other documents
                 setStreamStatus('📄 Generating cover letter, checklist, and review summary...');
                 setStreamProgress(95);
               } else if (data.type === 'complete') {
+                // Clear fake progress interval
+                if (fakeProgressInterval) {
+                  clearInterval(fakeProgressInterval);
+                  fakeProgressInterval = null;
+                }
+                
                 // All documents complete
                 setIsStreaming(false);
                 setStreamProgress(100);
@@ -594,11 +644,21 @@ const DBENarrativePro = () => {
           }
         }
       }
+      
+      // Cleanup interval on completion
+      if (fakeProgressInterval) {
+        clearInterval(fakeProgressInterval);
+      }
     } catch (err) {
       console.error('Generation error:', err);
       setError(err.message);
       trackGenerationError(err.message);
       setIsStreaming(false);
+      
+      // Cleanup interval on error
+      if (fakeProgressInterval) {
+        clearInterval(fakeProgressInterval);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -1252,11 +1312,21 @@ const DBENarrativePro = () => {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                       <div 
-                        className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-300"
+                        className={`bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-300 ${
+                          streamProgress >= 90 && streamProgress < 95 ? 'animate-pulse' : ''
+                        }`}
                         style={{ width: `${streamProgress}%` }}
                       />
                     </div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 flex items-center gap-2">
+                      {streamProgress >= 90 && streamProgress < 95 && (
+                        <span className="inline-block">
+                          <svg className="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        </span>
+                      )}
                       {streamStatus}
                     </p>
                   </div>
