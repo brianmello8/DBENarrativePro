@@ -829,7 +829,7 @@ For questions about DBE regulations or the 2025 IFR:
           narrative,
           checklist,
           reviewSummary,
-          preview: narrative.substring(0, 1500)
+          preview: narrative.substring(0, 750)
         }
       })}
 
@@ -842,7 +842,7 @@ For questions about DBE regulations or the 2025 IFR:
         narrative,
         checklist,
         reviewSummary,
-        preview: narrative.substring(0, 1500) + '\n\n[... Preview shows first portion of narrative. Complete package includes 4 professional documents totaling 15-20 pages. Purchase for $149 to unlock full access ...]'
+        preview: narrative.substring(0, 750) + '\n\n[... Preview shows first section of narrative. Complete package includes 4 professional documents totaling 15-20 pages. Purchase for $149 to unlock full access ...]'
       });
     }
 

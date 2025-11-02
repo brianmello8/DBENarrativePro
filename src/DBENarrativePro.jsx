@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, Download, FileText, AlertCircle, CheckCircle, Building2, DollarSign, Users, Shield, Eye, CreditCard, Trash2, Save, Home, ArrowUp, Sparkles, GraduationCap, Briefcase, AlertTriangle } from 'lucide-react';
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
@@ -103,6 +103,9 @@ const DBENarrativePro = () => {
   const [error, setError] = useState(null);
   const [generationProgress, setGenerationProgress] = useState('');
   const [savedDraftAvailable, setSavedDraftAvailable] = useState(false);
+
+  // Ref for scrolling to download section after payment
+  const downloadSectionRef = useRef(null);
 
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
@@ -296,34 +299,15 @@ const DBENarrativePro = () => {
 
     const handlePaymentSuccess = (event) => {
       console.log('✅ Payment success event received:', event);
-      console.log('📦 generatedDocs available:', !!generatedDocs);
-      console.log('📦 generatedDocs keys:', generatedDocs ? Object.keys(generatedDocs) : 'none');
       
+      // Update state to trigger re-render and show download buttons
       setIsPaid(true);
       localStorage.setItem('dbeNarrativePaid', 'true');
       console.log('💳 Payment status saved to localStorage');
       trackPaymentSuccess();
       
-      // Automatically download all documents after payment
-      setTimeout(() => {
-        const docs = generatedDocs || JSON.parse(localStorage.getItem('dbeNarrativeGeneratedDocs') || 'null');
-        console.log('📥 Attempting auto-download. Docs available:', !!docs);
-        
-        if (docs) {
-          try {
-            setAutoDownloadAttempted(true);
-            console.log('📥 Calling downloadAllDocuments...');
-            downloadAllDocuments();
-            alert('✅ Payment successful! Your documents are downloading automatically.');
-          } catch (error) {
-            console.error('❌ Auto-download failed:', error);
-            alert('✅ Payment successful! Click "Download All Documents" button below to get your files.');
-          }
-        } else {
-          console.warn('⚠️ No documents available for download');
-          alert('✅ Payment successful! Please refresh the page if documents do not appear.');
-        }
-      }, 500);
+      // Show success message
+      alert('✅ Payment successful! Your documents are now available for download.');
     };
 
     window.addEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
@@ -331,7 +315,40 @@ const DBENarrativePro = () => {
     return () => {
       window.removeEventListener('lemon-squeezy-event-payment-success', handlePaymentSuccess);
     };
-  }, [lsReady, generatedDocs]); // downloadAllDocuments is stable, doesn't need to be in deps
+  }, [lsReady, trackPaymentSuccess]);
+
+  // Auto-download and scroll when payment is completed
+  useEffect(() => {
+    if (isPaid && generatedDocs && !autoDownloadAttempted) {
+      console.log('💳 Payment confirmed, triggering auto-download and scroll...');
+      
+      // Scroll to download section
+      setTimeout(() => {
+        if (downloadSectionRef.current) {
+          downloadSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          console.log('📜 Scrolled to download section');
+        }
+      }, 300);
+      
+      // Auto-download all documents
+      setTimeout(() => {
+        try {
+          setAutoDownloadAttempted(true);
+          console.log('📥 Starting auto-download of all documents...');
+          downloadAllDocuments();
+          console.log('✅ Auto-download completed successfully');
+        } catch (error) {
+          console.error('❌ Auto-download failed:', error);
+        }
+      }, 800);
+    }
+  }, [isPaid, generatedDocs, autoDownloadAttempted]);
+
+  // Monitor isPaid state changes for debugging
+  useEffect(() => {
+    console.log('🔄 isPaid state changed to:', isPaid);
+    console.log('📦 generatedDocs exists:', !!generatedDocs);
+  }, [isPaid, generatedDocs]);
 
   const handlePayment = () => {
     if (!lsReady) {
@@ -1252,7 +1269,7 @@ const DBENarrativePro = () => {
                   </div>
                   
                   <p className="text-xs text-gray-500 mt-3 text-center">
-                    Showing preview of first two sections • Full document available after purchase
+                    Showing preview of first section • Full document available after purchase
                   </p>
                 </div>
               )}
@@ -1314,41 +1331,6 @@ const DBENarrativePro = () => {
                   )}
                 </button>
 
-                {/* Streaming Preview */}
-                {isStreaming && (
-                  <div className="mt-6 bg-white border-2 border-blue-300 rounded-xl p-6 shadow-lg">
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-bold text-blue-900">
-                          📝 {streamStatus}
-                        </h3>
-                        <span className="text-sm font-semibold text-blue-600">
-                          {streamProgress}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-3 rounded-full transition-all duration-300"
-                          style={{ width: `${streamProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 max-h-96 overflow-y-auto">
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap font-sans text-gray-900">
-                        {streamedContent}
-                        {streamProgress < 90 && <span className="animate-pulse ml-1">▊</span>}
-                      </div>
-                    </div>
-                    
-                    {streamProgress >= 90 && (
-                      <p className="text-green-600 font-semibold mt-4 text-center">
-                        ✅ Preview complete! Generating remaining sections and documents...
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {generationProgress && !isStreaming && (
                   <p className="text-blue-700 font-semibold mt-4">{generationProgress}</p>
                 )}
@@ -1390,14 +1372,14 @@ const DBENarrativePro = () => {
                   </h4>
                   <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 max-h-96 overflow-y-auto">
                     <div className="text-sm leading-relaxed whitespace-pre-wrap font-sans text-gray-900">
-                      {generatedDocs.preview || generatedDocs.narrative.substring(0, 2000)}...
+                      {generatedDocs.preview || generatedDocs.narrative.substring(0, 750)}...
                       <p className="text-gray-500 italic mt-4">[Complete narrative available after payment]</p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-xl mb-6">
+              <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-xl mb-6" ref={downloadSectionRef}>
                 {!isPaid ? (
                   <div className="bg-blue-50 border-2 border-blue-400 p-6 rounded-xl mb-6">
                     <h4 className="text-xl font-bold text-blue-900 mb-3">
