@@ -4,7 +4,7 @@ import { Download, FileText, CheckCircle, Home, AlertCircle, Lock } from 'lucide
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
 import { Helmet } from 'react-helmet-async';
-import Navigation from './Navigation';
+import Navigation from '../Navigation';
 
 const DownloadPage = () => {
   const navigate = useNavigate();
