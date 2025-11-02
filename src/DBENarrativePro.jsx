@@ -104,8 +104,6 @@ const DBENarrativePro = () => {
   const [generationProgress, setGenerationProgress] = useState('');
   const [savedDraftAvailable, setSavedDraftAvailable] = useState(false);
 
-  // Ref for scrolling to download section after payment
-  const downloadSectionRef = useRef(null);
   
   // Ref to store payment success handler (prevents stale closure in Lemon Squeezy callback)
   const paymentSuccessHandlerRef = useRef(null);
@@ -272,21 +270,25 @@ const DBENarrativePro = () => {
   // LEMON SQUEEZY INTEGRATION
   // ==========================================
   
-  // Keep payment handler ref updated with current functions
-  useEffect(() => {
-    paymentSuccessHandlerRef.current = () => {
-      console.log('✅ Payment success detected!');
-      
-      // Update state to trigger re-render and show download buttons
-      setIsPaid(true);
-      localStorage.setItem('dbeNarrativePaid', 'true');
-      console.log('💳 Payment status saved to localStorage');
-      trackPaymentSuccess();
-      
-      // Show success message
-      alert('✅ Payment successful! Your documents are now available for download.');
-    };
-  }, [trackPaymentSuccess]); // Updates when trackPaymentSuccess changes
+useEffect(() => {
+  paymentSuccessHandlerRef.current = () => {
+    console.log('✅ Payment success detected!');
+    
+    // Update state and save to localStorage
+    setIsPaid(true);
+    localStorage.setItem('dbeNarrativePaid', 'true');
+    console.log('💳 Payment status saved to localStorage');
+    trackPaymentSuccess();
+    
+    // Show success message and redirect to download page
+    alert('✅ Payment successful! Redirecting to your documents...');
+    
+    // Redirect to download page after a brief delay
+    setTimeout(() => {
+      navigate('/download');
+    }, 1000);
+  };
+}, [trackPaymentSuccess, navigate]);
   
   useEffect(() => {
     const loadLemonSqueezy = () => {
@@ -329,33 +331,6 @@ const DBENarrativePro = () => {
     const cleanup = loadLemonSqueezy();
     return cleanup;
   }, []); // Only run once on mount
-
-  // Auto-download and scroll when payment is completed
-  useEffect(() => {
-    if (isPaid && generatedDocs && !autoDownloadAttempted) {
-      console.log('💳 Payment confirmed, triggering auto-download and scroll...');
-      
-      // Scroll to download section
-      setTimeout(() => {
-        if (downloadSectionRef.current) {
-          downloadSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          console.log('📜 Scrolled to download section');
-        }
-      }, 300);
-      
-      // Auto-download all documents
-      setTimeout(() => {
-        try {
-          setAutoDownloadAttempted(true);
-          console.log('📥 Starting auto-download of all documents...');
-          downloadAllDocuments();
-          console.log('✅ Auto-download completed successfully');
-        } catch (error) {
-          console.error('❌ Auto-download failed:', error);
-        }
-      }, 800);
-    }
-  }, [isPaid, generatedDocs, autoDownloadAttempted]);
 
   // Monitor isPaid state changes for debugging
   useEffect(() => {
@@ -1449,7 +1424,7 @@ const DBENarrativePro = () => {
                 </div>
               )}
 
-              <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-xl mb-6" ref={downloadSectionRef}>
+              <div className="bg-blue-50 border-2 border-blue-200 p-6 rounded-xl mb-6">
                 {!isPaid ? (
                   <div className="bg-blue-50 border-2 border-blue-400 p-6 rounded-xl mb-6">
                     <h4 className="text-xl font-bold text-blue-900 mb-3">
@@ -1516,11 +1491,6 @@ const DBENarrativePro = () => {
                       <Download size={24} />
                       Download All Documents
                     </button>
-                    {!autoDownloadAttempted && (
-                      <p className="text-amber-600 text-sm font-semibold mb-4">
-                        ⚠️ If downloads didn't start automatically, click the button above.
-                      </p>
-                    )}
                   </>
                 )}
               </div>
