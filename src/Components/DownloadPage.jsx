@@ -38,6 +38,85 @@ const DownloadPage = () => {
     }
   };
 
+  // FIXED: Separate function for actual document creation
+  const createAndDownloadDoc = async (type) => {
+    let content, filename;
+
+    switch(type) {
+      case 'cover':
+        content = generatedDocs.cover;
+        filename = 'DBE_Cover_Letter.docx';
+        break;
+      case 'narrative':
+        content = generatedDocs.narrative;
+        filename = 'DBE_Personal_Narrative.docx';
+        break;
+      case 'checklist':
+        content = generatedDocs.checklist;
+        filename = 'DBE_Evidence_Checklist.docx';
+        break;
+      case 'review':
+        content = generatedDocs.review;
+        filename = 'DBE_Review_Summary.docx';
+        break;
+      default:
+        throw new Error('Unknown document type');
+    }
+
+    // Parse content into paragraphs
+    const paragraphs = content.split('\n').map(line => {
+      const trimmedLine = line.trim();
+      
+      // Headers
+      if (trimmedLine.startsWith('# ')) {
+        return new Paragraph({
+          text: trimmedLine.substring(2),
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 400, after: 200 }
+        });
+      }
+      if (trimmedLine.startsWith('## ')) {
+        return new Paragraph({
+          text: trimmedLine.substring(3),
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 300, after: 150 }
+        });
+      }
+      
+      // Bold text
+      if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
+        return new Paragraph({
+          children: [
+            new TextRun({
+              text: trimmedLine.slice(2, -2),
+              bold: true
+            })
+          ],
+          spacing: { before: 200, after: 100 }
+        });
+      }
+      
+      // Regular paragraph
+      return new Paragraph({
+        text: trimmedLine,
+        spacing: { before: 120, after: 120 }
+      });
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: paragraphs
+      }]
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, filename);
+    trackDownload(type);
+    
+    console.log(`✅ Downloaded ${filename}`);
+  };
+
   const downloadDocument = async (type) => {
     if (!isPaid || !generatedDocs) {
       alert('Please complete payment to download documents.');
@@ -47,81 +126,7 @@ const DownloadPage = () => {
     setDownloading(type);
     
     try {
-      let content, filename;
-
-      switch(type) {
-        case 'cover':
-          content = generatedDocs.cover;
-          filename = 'DBE_Cover_Letter.docx';
-          break;
-        case 'narrative':
-          content = generatedDocs.narrative;
-          filename = 'DBE_Personal_Narrative.docx';
-          break;
-        case 'checklist':
-          content = generatedDocs.checklist;
-          filename = 'DBE_Evidence_Checklist.docx';
-          break;
-        case 'review':
-          content = generatedDocs.review;
-          filename = 'DBE_Review_Summary.docx';
-          break;
-        default:
-          throw new Error('Unknown document type');
-      }
-
-      // Parse content into paragraphs
-      const paragraphs = content.split('\n').map(line => {
-        const trimmedLine = line.trim();
-        
-        // Headers
-        if (trimmedLine.startsWith('# ')) {
-          return new Paragraph({
-            text: trimmedLine.substring(2),
-            heading: HeadingLevel.HEADING_1,
-            spacing: { before: 400, after: 200 }
-          });
-        }
-        if (trimmedLine.startsWith('## ')) {
-          return new Paragraph({
-            text: trimmedLine.substring(3),
-            heading: HeadingLevel.HEADING_2,
-            spacing: { before: 300, after: 150 }
-          });
-        }
-        
-        // Bold text
-        if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
-          return new Paragraph({
-            children: [
-              new TextRun({
-                text: trimmedLine.slice(2, -2),
-                bold: true
-              })
-            ],
-            spacing: { before: 200, after: 100 }
-          });
-        }
-        
-        // Regular paragraph
-        return new Paragraph({
-          text: trimmedLine,
-          spacing: { before: 120, after: 120 }
-        });
-      });
-
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: paragraphs
-        }]
-      });
-
-      const blob = await Packer.toBlob(doc);
-      saveAs(blob, filename);
-      trackDownload(type);
-      
-      console.log(`✅ Downloaded ${filename}`);
+      await createAndDownloadDoc(type);
     } catch (error) {
       console.error('Download error:', error);
       alert('Download failed. Please try again.');
@@ -130,19 +135,29 @@ const DownloadPage = () => {
     }
   };
 
+  // FIXED: Download all documents sequentially without state conflicts
   const downloadAllDocuments = async () => {
-    if (!isPaid || !generatedDocs) return;
+    if (!isPaid || !generatedDocs) {
+      alert('Please complete payment to download documents.');
+      return;
+    }
     
     setDownloading('all');
     const types = ['cover', 'narrative', 'checklist', 'review'];
     
-    for (const type of types) {
-      await downloadDocument(type);
-      // Small delay between downloads
-      await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      for (const type of types) {
+        await createAndDownloadDoc(type);
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      console.log('✅ All documents downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading all documents:', error);
+      alert('Some documents failed to download. Please try downloading them individually.');
+    } finally {
+      setDownloading(null);
     }
-    
-    setDownloading(null);
   };
 
   if (!generatedDocs) {
@@ -198,8 +213,7 @@ const DownloadPage = () => {
                 onClick={() => navigate('/dbe-narrative-pro')}
                 className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl inline-flex items-center gap-3 transition-all transform hover:scale-105 shadow-xl"
               >
-                <Home size={24} />
-                Return to Payment
+                Return to Form
               </button>
             </div>
           </div>
@@ -217,48 +231,41 @@ const DownloadPage = () => {
 
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
         <Navigation />
-
+        
         <div className="max-w-5xl mx-auto px-4 py-12">
           {/* Success Header */}
-          <div className="bg-white rounded-2xl shadow-2xl p-8 mb-8 border-2 border-green-200">
-            <div className="flex flex-col items-center text-center">
-              <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-full mb-6 shadow-lg">
-                <CheckCircle className="text-white" size={64} />
-              </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-4">
-                🎉 Payment Successful!
-              </h1>
-              <p className="text-xl text-gray-700 mb-2">
-                Your DBE Narrative documents are ready to download
-              </p>
-              <p className="text-sm text-gray-600">
-                All documents are fully editable Word files (.docx)
-              </p>
-            </div>
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-2xl p-8 mb-8 text-white text-center">
+            <CheckCircle className="mx-auto mb-4" size={64} />
+            <h1 className="text-4xl font-bold mb-2">
+              🎉 Your Documents Are Ready!
+            </h1>
+            <p className="text-xl text-green-50">
+              All four professional DBE documents have been generated and are ready to download
+            </p>
           </div>
 
           {/* Download All Button */}
-          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl shadow-2xl p-8 mb-8 text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              Download All Documents
+          <div className="bg-white rounded-2xl shadow-2xl p-8 mb-8 text-center border-2 border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Quick Download
             </h2>
-            <p className="text-blue-100 mb-6">
-              Get all four documents in one click
+            <p className="text-gray-600 mb-6">
+              Get all four documents at once with a single click
             </p>
             <button
               onClick={downloadAllDocuments}
               disabled={downloading === 'all'}
-              className="bg-white hover:bg-gray-100 text-blue-600 font-bold py-4 px-8 rounded-xl text-lg inline-flex items-center gap-3 transition-all transform hover:scale-105 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-4 px-10 rounded-xl inline-flex items-center gap-3 transition-all transform hover:scale-105 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {downloading === 'all' ? (
                 <>
-                  <div className="animate-spin rounded-full h-6 w-6 border-3 border-blue-600 border-t-transparent" />
-                  Downloading...
+                  <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-t-transparent" />
+                  Downloading All Documents...
                 </>
               ) : (
                 <>
                   <Download size={24} />
-                  Download All (4 files)
+                  Download All Documents
                 </>
               )}
             </button>

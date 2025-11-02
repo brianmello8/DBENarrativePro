@@ -515,130 +515,144 @@ useEffect(() => {
   // DOCUMENT GENERATION
   // ==========================================
 
-  const generateDocuments = async () => {
-    setIsGenerating(true);
-    setIsStreaming(true);
-    setError(null);
-    setStreamedContent('');
-    setStreamProgress(0);
-    setStreamStatus('Initializing...');
-    trackGenerationStart();
-    
-    // Fake progress interval for the long wait after 90%
-    let fakeProgressInterval = null;
-    
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formData, stream: true })
-      });
+ // ==========================================
+// FIXED DOCUMENT GENERATION FUNCTION
+// Replace lines 518-640 in your DBENarrativePro.jsx with this
+// ==========================================
 
-      if (!response.ok) {
-        throw new Error('Generation failed');
-      }
+const generateDocuments = async () => {
+  setIsGenerating(true);
+  setIsStreaming(true);
+  setError(null);
+  setStreamedContent('');
+  setStreamProgress(0);
+  setStreamStatus('Initializing...');
+  trackGenerationStart();
+  
+  // Fake progress interval for the long wait after 90%
+  let fakeProgressInterval = null;
+  
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ formData, stream: true })
+    });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+    if (!response.ok) {
+      throw new Error('Generation failed');
+    }
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            
+            if (data.type === 'content') {
+              // Streaming narrative content
+              setStreamedContent(prev => prev + data.chunk);
+              setStreamProgress(prev => Math.min(prev + 0.5, 90));
+              setStreamStatus('Writing your narrative...');
+            } else if (data.type === 'preview_complete') {
+              // Preview sections complete - now the long wait begins
+              setStreamStatus('✅ Preview complete! Continuing with full narrative...');
+              setStreamProgress(90);
               
-              if (data.type === 'content') {
-                // Streaming narrative content
-                setStreamedContent(prev => prev + data.chunk);
-                setStreamProgress(prev => Math.min(prev + 0.5, 90));
-                setStreamStatus('Writing your narrative...');
-              } else if (data.type === 'preview_complete') {
-                // Preview sections complete - now the long wait begins
-                setStreamStatus('✅ Preview complete! Continuing with full narrative...');
-                setStreamProgress(90);
-                
-                // Start fake progress to show activity during long backend process
-                let fakeProgress = 90;
-                const statusMessages = [
-                  '📝 Completing remaining narrative sections...',
-                  '🔍 Adding detailed analysis and evidence...',
-                  '✍️ Finalizing narrative structure...',
-                  '📋 Preparing cover letter...'
-                ];
-                let messageIndex = 0;
-                
-                fakeProgressInterval = setInterval(() => {
-                  fakeProgress = Math.min(fakeProgress + 0.5, 94.5); // Slowly increment to 94.5%
+              // FIXED: Enhanced fake progress with continuous updates from 90-100%
+              let fakeProgress = 90;
+              const statusMessages = [
+                '📝 Completing remaining narrative sections...',
+                '🔍 Adding detailed analysis and evidence...',
+                '✍️ Finalizing narrative structure...',
+                '📋 Preparing cover letter...',
+                '📄 Generating evidence checklist...',
+                '✅ Compiling review summary...',
+                '🎨 Formatting all documents...',
+                '🔎 Quality checking content...',
+                '📊 Verifying compliance requirements...',
+                '✨ Applying final touches...'
+              ];
+              let messageIndex = 0;
+              let tickCount = 0;
+              
+              fakeProgressInterval = setInterval(() => {
+                // Slow incremental progress from 90% to 99.5%
+                if (fakeProgress < 99.5) {
+                  fakeProgress = Math.min(fakeProgress + 0.25, 99.5); // Very slow increment
                   setStreamProgress(fakeProgress);
-                  
-                  // Change status message every 3 seconds
-                  if (Math.random() > 0.7 && messageIndex < statusMessages.length - 1) {
-                    messageIndex++;
-                    setStreamStatus(statusMessages[messageIndex]);
-                  }
-                }, 1000); // Update every second
-                
-              } else if (data.type === 'generating_other_docs') {
-                // Clear fake progress interval
-                if (fakeProgressInterval) {
-                  clearInterval(fakeProgressInterval);
-                  fakeProgressInterval = null;
                 }
                 
-                // Generating other documents
-                setStreamStatus('📄 Generating cover letter, checklist, and review summary...');
-                setStreamProgress(95);
-              } else if (data.type === 'complete') {
-                // Clear fake progress interval
-                if (fakeProgressInterval) {
-                  clearInterval(fakeProgressInterval);
-                  fakeProgressInterval = null;
-                }
+                tickCount++;
                 
-                // All documents complete
-                setIsStreaming(false);
-                setStreamProgress(100);
-                setStreamStatus('✅ All documents generated successfully!');
-                setGeneratedDocs(data.documents);
-                localStorage.setItem('dbeNarrativeGeneratedDocs', JSON.stringify(data.documents));
-                console.log('📄 Documents saved to localStorage');
-                trackGenerationComplete();
-                setTimeout(() => setStreamStatus(''), 2000);
+                // Rotate through status messages every 2-4 seconds (2-4 ticks)
+                if (tickCount % 3 === 0) {
+                  messageIndex = (messageIndex + 1) % statusMessages.length;
+                  setStreamStatus(statusMessages[messageIndex]);
+                }
+              }, 1000); // Update every second
+              
+            } else if (data.type === 'generating_other_docs') {
+              // Keep fake progress running - don't clear it yet
+              // Just update the status message
+              setStreamStatus('📄 Generating cover letter, checklist, and review summary...');
+              
+              // Bump progress to 95% if not there yet
+              setStreamProgress(prev => Math.max(prev, 95));
+              
+            } else if (data.type === 'complete') {
+              // Clear fake progress interval
+              if (fakeProgressInterval) {
+                clearInterval(fakeProgressInterval);
+                fakeProgressInterval = null;
               }
-            } catch (e) {
-              console.error('Error parsing SSE data:', e);
+              
+              // All documents complete - jump to 100%
+              setIsStreaming(false);
+              setStreamProgress(100);
+              setStreamStatus('✅ All documents generated successfully!');
+              setGeneratedDocs(data.documents);
+              localStorage.setItem('dbeNarrativeGeneratedDocs', JSON.stringify(data.documents));
+              console.log('📄 Documents saved to localStorage');
+              trackGenerationComplete();
+              setTimeout(() => setStreamStatus(''), 2000);
             }
+          } catch (e) {
+            console.error('Error parsing SSE data:', e);
           }
         }
       }
-      
-      // Cleanup interval on completion
-      if (fakeProgressInterval) {
-        clearInterval(fakeProgressInterval);
-      }
-    } catch (err) {
-      console.error('Generation error:', err);
-      setError(err.message);
-      trackGenerationError(err.message);
-      setIsStreaming(false);
-      
-      // Cleanup interval on error
-      if (fakeProgressInterval) {
-        clearInterval(fakeProgressInterval);
-      }
-    } finally {
-      setIsGenerating(false);
     }
-  };
-
+    
+    // Cleanup interval on completion
+    if (fakeProgressInterval) {
+      clearInterval(fakeProgressInterval);
+    }
+  } catch (err) {
+    console.error('Generation error:', err);
+    setError(err.message);
+    trackGenerationError(err.message);
+    setIsStreaming(false);
+    
+    // Cleanup interval on error
+    if (fakeProgressInterval) {
+      clearInterval(fakeProgressInterval);
+    }
+  } finally {
+    setIsGenerating(false);
+  }
+};
   // ==========================================
   // WORD DOCUMENT EXPORT
   // ==========================================
