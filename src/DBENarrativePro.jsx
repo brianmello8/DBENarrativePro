@@ -577,7 +577,7 @@ useEffect(() => {
               
               if (data.type === 'content') {
                 setStreamedContent(prev => prev + data.chunk);
-                setStreamProgress(prev => Math.min(prev + 0.5, 90));
+                setStreamProgress(prev => Math.min(prev + 0.3, 90));
                 setStreamStatus('Writing your narrative...');
               } else if (data.type === 'preview_complete') {
                 setStreamStatus('✅ Preview complete! Continuing with full narrative...');
@@ -601,7 +601,7 @@ useEffect(() => {
                 
                 fakeProgressInterval = setInterval(() => {
                   if (fakeProgress < 99.5) {
-                    fakeProgress = Math.min(fakeProgress + 0.25, 99.5);
+                    fakeProgress = Math.min(fakeProgress + 0.1, 99.5);
                     setStreamProgress(fakeProgress);
                   }
                   
