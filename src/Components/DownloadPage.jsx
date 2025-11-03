@@ -21,7 +21,16 @@ const DownloadPage = () => {
     const savedDocs = localStorage.getItem('dbeNarrativeGeneratedDocs');
     if (savedDocs) {
       try {
-        setGeneratedDocs(JSON.parse(savedDocs));
+        const docs = JSON.parse(savedDocs);
+        setGeneratedDocs(docs);
+        
+        // DEBUG: Log what documents are available
+        console.log('📄 Available documents:', {
+          cover: !!docs.cover,
+          narrative: !!docs.narrative,
+          checklist: !!docs.checklist,
+          review: !!docs.review
+        });
       } catch (error) {
         console.error('Error loading documents:', error);
       }
@@ -38,29 +47,35 @@ const DownloadPage = () => {
     }
   };
 
-  // FIXED: Separate function for actual document creation
+  // IMPROVED: Validate and create document
   const createAndDownloadDoc = async (type) => {
     let content, filename;
 
     switch(type) {
       case 'cover':
-        content = generatedDocs.cover;
+        content = generatedDocs?.cover;
         filename = 'DBE_Cover_Letter.docx';
         break;
       case 'narrative':
-        content = generatedDocs.narrative;
+        content = generatedDocs?.narrative;
         filename = 'DBE_Personal_Narrative.docx';
         break;
       case 'checklist':
-        content = generatedDocs.checklist;
+        content = generatedDocs?.checklist;
         filename = 'DBE_Evidence_Checklist.docx';
         break;
       case 'review':
-        content = generatedDocs.review;
+        content = generatedDocs?.review;
         filename = 'DBE_Review_Summary.docx';
         break;
       default:
         throw new Error('Unknown document type');
+    }
+
+    // VALIDATION: Check if content exists and is valid
+    if (!content || typeof content !== 'string' || content.trim() === '') {
+      const docName = filename.replace('.docx', '');
+      throw new Error(`❌ ${docName} is missing or incomplete.\n\nPlease return to the form and regenerate all documents.`);
     }
 
     // Parse content into paragraphs
@@ -129,13 +144,13 @@ const DownloadPage = () => {
       await createAndDownloadDoc(type);
     } catch (error) {
       console.error('Download error:', error);
-      alert('Download failed. Please try again.');
+      alert(error.message || 'Download failed. Please try again.');
     } finally {
       setDownloading(null);
     }
   };
 
-  // FIXED: Download all documents sequentially without state conflicts
+  // IMPROVED: Download all with better error handling
   const downloadAllDocuments = async () => {
     if (!isPaid || !generatedDocs) {
       alert('Please complete payment to download documents.');
@@ -144,14 +159,25 @@ const DownloadPage = () => {
     
     setDownloading('all');
     const types = ['cover', 'narrative', 'checklist', 'review'];
+    const failedDownloads = [];
     
     try {
       for (const type of types) {
-        await createAndDownloadDoc(type);
-        // Small delay between downloads
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          await createAndDownloadDoc(type);
+          // Small delay between downloads
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Failed to download ${type}:`, error);
+          failedDownloads.push(type);
+        }
       }
-      console.log('✅ All documents downloaded successfully');
+      
+      if (failedDownloads.length > 0) {
+        alert(`⚠️ Some documents failed to download:\n\n${failedDownloads.join(', ')}\n\nPlease try downloading them individually, or regenerate all documents.`);
+      } else {
+        console.log('✅ All documents downloaded successfully');
+      }
     } catch (error) {
       console.error('Error downloading all documents:', error);
       alert('Some documents failed to download. Please try downloading them individually.');
@@ -437,7 +463,7 @@ const DownloadPage = () => {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-600 font-bold">•</span>
-                <span>You can return to this page anytime using your browser history</span>
+                <span>If you get download errors, try regenerating all documents from the form</span>
               </li>
             </ul>
           </div>

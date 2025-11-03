@@ -74,7 +74,7 @@ Company Name: ${formData.companyName}
 Owner Name: ${formData.ownerName}
 Industry: ${formData.industry}
 Years in Business: ${formData.yearsInBusiness}
-Annual Revenue: $${formData.annualRevenue}
+Annual Revenue: ${formData.annualRevenue}
 Location: ${formData.location}
 Target UCP: ${formData.ucpSelection === 'Other (specify below)' ? formData.customUCP : formData.ucpSelection}
 
@@ -284,12 +284,12 @@ C. CONTRACT ACQUISITION AND COMPETITIVE POSITIONING
 Example: "Analysis of [X] bids over [Y] years reveals I was the low bidder or within 5% of low bid on [Z] occasions, yet awarded only [N] contracts. This [%] win rate compares unfavorably to the industry standard of [%] for established contractors. The [M] lost contracts represent approximately $[A] in foregone revenue..."
 
 D. MARKET POSITION AND REVENUE CONSTRAINTS
-- Expected revenue based on capabilities vs. actual revenue of $${formData.annualRevenue}
+- Expected revenue based on capabilities vs. actual revenue of ${formData.annualRevenue}
 - Gap analysis with specific numbers
 - Comparison to competitors with similar experience
 - Industry benchmarks vs. actual performance
 - Attribution to documented barriers above
-Example: "With [X] years of experience, [licenses/certifications], and demonstrated capability to complete [type] projects, comparable firms in this market average $[Y]-$[Z] in annual revenue. My actual revenue of $${formData.annualRevenue} represents a gap of $[A]-$[B], directly attributable to the financing barriers (costing approximately $[C] annually), bonding limitations (preventing access to approximately $[D] in annual opportunities), and systematic contract losses documented above (approximately $[E] in lost revenue over [X] years)..."]
+Example: "With [X] years of experience, [licenses/certifications], and demonstrated capability to complete [type] projects, comparable firms in this market average $[Y]-$[Z] in annual revenue. My actual revenue of ${formData.annualRevenue} represents a gap of $[A]-$[B], directly attributable to the financing barriers (costing approximately $[C] annually), bonding limitations (preventing access to approximately $[D] in annual opportunities), and systematic contract losses documented above (approximately $[E] in lost revenue over [X] years)..."]
 
 
 VII. SUPPORTING DOCUMENTATION
@@ -377,6 +377,10 @@ CRITICAL WRITING GUIDELINES - YOU MUST FOLLOW THESE:
 
 Generate the complete, professional narrative now, ensuring full 2025 IFR compliance:`;
 
+    // =================================================================
+    // FIXED: ACTUALLY CALL THE ANTHROPIC API
+    // =================================================================
+    
     // Generate the main narrative
     let narrative = '';
     
@@ -385,6 +389,8 @@ Generate the complete, professional narrative now, ensuring full 2025 IFR compli
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      
+      console.log('🚀 Starting narrative generation...');
       
       const stream = await anthropic.messages.stream({
         model: "claude-sonnet-4-20250514",
@@ -407,27 +413,24 @@ Generate the complete, professional narrative now, ensuring full 2025 IFR compli
             streamedPreview += text;
             
             // Send chunk to client
-            res.write(`data: ${JSON.stringify({ chunk: text, type: 'content' })}
-
-`);
+            res.write(`data: ${JSON.stringify({ chunk: text, type: 'content' })}\n\n`);
             
             // Count sections to stop at Section II
             if (text.includes('I.')) sectionCount = Math.max(sectionCount, 1);
             if (text.includes('II.')) sectionCount = Math.max(sectionCount, 2);
-            if (text.includes('III.') || sectionCount >= 2 && narrative.length > 3000) {
+            if (text.includes('III.') || (sectionCount >= 2 && narrative.length > 3000)) {
               stopStreaming = true;
-              res.write(`data: ${JSON.stringify({ type: 'preview_complete' })}
-
-`);
+              res.write(`data: ${JSON.stringify({ type: 'preview_complete' })}\n\n`);
+              console.log('✅ Preview complete, continuing generation...');
             }
           }
         }
       }
       
+      console.log(`✅ Narrative complete (${narrative.length} chars)`);
+      
       // Notify that we're continuing with other documents
-      res.write(`data: ${JSON.stringify({ type: 'generating_other_docs' })}
-
-`);
+      res.write(`data: ${JSON.stringify({ type: 'generating_other_docs' })}\n\n`);
       
     } else {
       // Non-streaming mode (existing behavior)
@@ -448,7 +451,7 @@ Date: ${today}
 Company: ${formData.companyName}
 Industry: ${formData.industry}
 Years in Business: ${formData.yearsInBusiness}
-Annual Revenue: $${formData.annualRevenue}
+Annual Revenue: ${formData.annualRevenue}
 
 IMPORTANT CONTEXT:
 This is a recertification application under the new October 2025 Interim Final Rule, which eliminates race/sex-based presumptions and requires individualized demonstration of disadvantage. This narrative documents barriers across the applicant's entire life, from childhood through current business operations.
@@ -465,6 +468,8 @@ REQUIREMENTS:
 
 Generate the complete cover letter now:`;
 
+    console.log('📋 Generating cover letter...');
+    
     const coverMsg = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -473,8 +478,9 @@ Generate the complete cover letter now:`;
     });
 
     const coverLetter = coverMsg.content[0].text;
+    console.log(`✅ Cover letter complete (${coverLetter.length} chars)`);
 
-    // Generate updated checklist with PNW requirement
+    // Generate checklist (static content with form data)
     const checklist = `SUPPORTING DOCUMENTATION CHECKLIST
 ${formData.companyName} - DBE Recertification Application
 October 2025 Interim Final Rule Requirements
@@ -505,7 +511,7 @@ REQUIRED DOCUMENTS - Please ensure all items are included:
    • Current profit & loss statement (within 90 days)
    • Current balance sheet (within 90 days)
    • Business bank statements (last 12 months)
-   • Evidence of annual revenue: $${formData.annualRevenue}
+   • Evidence of annual revenue: ${formData.annualRevenue}
 
 ☐ EARLY LIFE AND EDUCATIONAL DISADVANTAGE EVIDENCE
    • Documentation supporting childhood economic circumstances (if available)
@@ -623,6 +629,8 @@ Document prepared by: DBE Narrative Pro
 Preparation Date: ${today}
 Compliant with: 49 CFR Part 26, Interim Final Rule (October 3, 2025)`;
 
+    console.log(`✅ Checklist complete (${checklist.length} chars)`);
+
     // Generate review summary
     const reviewSummary = `APPLICATION REVIEW SUMMARY
 Final Check Before Submission
@@ -638,7 +646,7 @@ APPLICANT INFORMATION:
 ✓ Owner Name: ${formData.ownerName}
 ✓ Industry: ${formData.industry}
 ✓ Years in Business: ${formData.yearsInBusiness}
-✓ Annual Revenue: $${formData.annualRevenue}
+✓ Annual Revenue: ${formData.annualRevenue}
 ✓ Location: ${formData.location}
 
 SUBMISSION TARGET:
@@ -816,40 +824,61 @@ For questions about DBE regulations or the 2025 IFR:
 • Consult your UCP certifier
 • Review 49 CFR Part 26 (October 2025 Interim Final Rule)
 • Consider consulting with a DBE attorney
-• Visit the U.S. Department of Transportation website
+• Visit the U.S. Department of Transportation website`;
 
-═══════════════════════════════════════════════════════════════`;
+    console.log(`✅ Review summary complete (${reviewSummary.length} chars)`);
+
+    // =================================================================
+    // CRITICAL: VALIDATE ALL DOCUMENTS BEFORE RETURNING
+    // =================================================================
+    
+    const validation = {
+      narrative: narrative && narrative.trim().length > 500,
+      coverLetter: coverLetter && coverLetter.trim().length > 200,
+      checklist: checklist && checklist.trim().length > 300,
+      reviewSummary: reviewSummary && reviewSummary.trim().length > 300
+    };
+
+    const failed = Object.entries(validation)
+      .filter(([_, valid]) => !valid)
+      .map(([name]) => name);
+
+    if (failed.length > 0) {
+      const error = `Incomplete documents: ${failed.join(', ')} are too short or empty`;
+      console.error('❌ Validation failed:', error);
+      throw new Error(error);
+    }
+
+    console.log('✅ All documents validated successfully');
 
     if (shouldStream) {
-      // Send final documents via SSE
+      // Send final complete event via SSE
       res.write(`data: ${JSON.stringify({
         type: 'complete',
         documents: {
-          coverLetter,
-          narrative,
-          checklist,
-          reviewSummary,
-          preview: narrative.substring(0, 750)
+          cover: coverLetter,
+          narrative: narrative,
+          checklist: checklist,
+          review: reviewSummary
         }
-      })}
-
-`);
+      })}\n\n`);
+      console.log('✅ Sent complete event to frontend');
       res.end();
     } else {
       // Regular JSON response
       return res.status(200).json({
-        coverLetter,
-        narrative,
-        checklist,
-        reviewSummary,
-        preview: narrative.substring(0, 750) + '\n\n[... Preview shows first section of narrative. Complete package includes 4 professional documents totaling 15-20 pages. Purchase for $149 to unlock full access ...]'
+        cover: coverLetter,
+        narrative: narrative,
+        checklist: checklist,
+        review: reviewSummary,
+        preview: narrative.substring(0, 750) + '\n\n[... Preview shows first section of narrative. Complete package includes 4 professional documents totaling 15-20 pages. Purchase to unlock full access ...]'
       });
     }
 
   } catch (error) {
-    console.error('Generate error:', error);
+    console.error('❌ Generate error:', error);
     return res.status(500).json({ 
-      error: 'Failed to generate',
+      error: 'Failed to generate documents',
       message: error.message 
     });
   }

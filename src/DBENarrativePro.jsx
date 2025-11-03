@@ -102,6 +102,8 @@ const DBENarrativePro = () => {
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
   const [generationProgress, setGenerationProgress] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+
   const [savedDraftAvailable, setSavedDraftAvailable] = useState(false);
 
   
@@ -274,19 +276,38 @@ useEffect(() => {
   paymentSuccessHandlerRef.current = () => {
     console.log('✅ Payment success detected!');
     
-    // Update state and save to localStorage
     setIsPaid(true);
     localStorage.setItem('dbeNarrativePaid', 'true');
     console.log('💳 Payment status saved to localStorage');
     trackPaymentSuccess();
     
-    // Show success message and redirect to download page
-    alert('✅ Payment successful! Redirecting to your documents...');
-    
-    // Redirect to download page after a brief delay
-    setTimeout(() => {
-      navigate('/download');
-    }, 1000);
+    const savedDocs = localStorage.getItem('dbeNarrativeGeneratedDocs');
+    if (savedDocs) {
+      try {
+        const docs = JSON.parse(savedDocs);
+        const hasAllDocs = docs.cover && docs.narrative && docs.checklist && docs.review;
+        
+        if (hasAllDocs) {
+          alert('✅ Payment successful! Redirecting to your documents...');
+          setTimeout(() => {
+            navigate('/download');
+          }, 1000);
+        } else {
+          alert('⚠️ Your documents are incomplete. Please regenerate them before downloading.');
+          setError('Documents incomplete. Please regenerate.');
+          setShowErrorModal(true);
+        }
+      } catch (e) {
+        console.error('Error validating documents:', e);
+        alert('⚠️ There was an error with your documents. Please regenerate them.');
+        setError('Document validation failed. Please regenerate.');
+        setShowErrorModal(true);
+      }
+    } else {
+      alert('⚠️ No documents found. Please generate your documents first.');
+      setError('No documents found. Please generate documents.');
+      setShowErrorModal(true);
+    }
   };
 }, [trackPaymentSuccess, navigate]);
   
@@ -515,147 +536,146 @@ useEffect(() => {
   // DOCUMENT GENERATION
   // ==========================================
 
- // ==========================================
-// FIXED DOCUMENT GENERATION FUNCTION
-// Replace lines 518-640 in your DBENarrativePro.jsx with this
-// ==========================================
+  const generateDocuments = async () => {
+    setIsGenerating(true);
+    setIsStreaming(true);
+    setError(null);
+    setStreamedContent('');
+    setStreamProgress(0);
+    setStreamStatus('Initializing...');
+    trackGenerationStart();
+    
+    let fakeProgressInterval = null;
+    
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formData, stream: true })
+      });
 
-const generateDocuments = async () => {
-  setIsGenerating(true);
-  setIsStreaming(true);
-  setError(null);
-  setStreamedContent('');
-  setStreamProgress(0);
-  setStreamStatus('Initializing...');
-  trackGenerationStart();
-  
-  // Fake progress interval for the long wait after 90%
-  let fakeProgressInterval = null;
-  
-  try {
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ formData, stream: true })
-    });
+      if (!response.ok) {
+        throw new Error('Generation failed');
+      }
 
-    if (!response.ok) {
-      throw new Error('Generation failed');
-    }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            
-            if (data.type === 'content') {
-              // Streaming narrative content
-              setStreamedContent(prev => prev + data.chunk);
-              setStreamProgress(prev => Math.min(prev + 0.5, 90));
-              setStreamStatus('Writing your narrative...');
-            } else if (data.type === 'preview_complete') {
-              // Preview sections complete - now the long wait begins
-              setStreamStatus('✅ Preview complete! Continuing with full narrative...');
-              setStreamProgress(90);
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
               
-              // FIXED: Enhanced fake progress with continuous updates from 90-100%
-              let fakeProgress = 90;
-              const statusMessages = [
-                '📝 Completing remaining narrative sections...',
-                '🔍 Adding detailed analysis and evidence...',
-                '✍️ Finalizing narrative structure...',
-                '📋 Preparing cover letter...',
-                '📄 Generating evidence checklist...',
-                '✅ Compiling review summary...',
-                '🎨 Formatting all documents...',
-                '🔎 Quality checking content...',
-                '📊 Verifying compliance requirements...',
-                '✨ Applying final touches...'
-              ];
-              let messageIndex = 0;
-              let tickCount = 0;
-              
-              fakeProgressInterval = setInterval(() => {
-                // Slow incremental progress from 90% to 99.5%
-                if (fakeProgress < 99.5) {
-                  fakeProgress = Math.min(fakeProgress + 0.25, 99.5); // Very slow increment
-                  setStreamProgress(fakeProgress);
+              if (data.type === 'content') {
+                setStreamedContent(prev => prev + data.chunk);
+                setStreamProgress(prev => Math.min(prev + 0.5, 90));
+                setStreamStatus('Writing your narrative...');
+              } else if (data.type === 'preview_complete') {
+                setStreamStatus('✅ Preview complete! Continuing with full narrative...');
+                setStreamProgress(90);
+                
+                let fakeProgress = 90;
+                const statusMessages = [
+                  '📝 Completing remaining narrative sections...',
+                  '🔍 Adding detailed analysis and evidence...',
+                  '✍️ Finalizing narrative structure...',
+                  '📋 Preparing cover letter...',
+                  '📄 Generating evidence checklist...',
+                  '✅ Compiling review summary...',
+                  '🎨 Formatting all documents...',
+                  '🔎 Quality checking content...',
+                  '📊 Verifying compliance requirements...',
+                  '✨ Applying final touches...'
+                ];
+                let messageIndex = 0;
+                let tickCount = 0;
+                
+                fakeProgressInterval = setInterval(() => {
+                  if (fakeProgress < 99.5) {
+                    fakeProgress = Math.min(fakeProgress + 0.25, 99.5);
+                    setStreamProgress(fakeProgress);
+                  }
+                  
+                  tickCount++;
+                  
+                  if (tickCount % 3 === 0) {
+                    messageIndex = (messageIndex + 1) % statusMessages.length;
+                    setStreamStatus(statusMessages[messageIndex]);
+                  }
+                }, 1000);
+                
+              } else if (data.type === 'generating_other_docs') {
+                setStreamStatus('📄 Generating cover letter, checklist, and review summary...');
+                setStreamProgress(prev => Math.max(prev, 95));
+                
+              } else if (data.type === 'complete') {
+                if (fakeProgressInterval) {
+                  clearInterval(fakeProgressInterval);
+                  fakeProgressInterval = null;
                 }
                 
-                tickCount++;
+                const docs = data.documents;
+                const missing = [];
                 
-                // Rotate through status messages every 2-4 seconds (2-4 ticks)
-                if (tickCount % 3 === 0) {
-                  messageIndex = (messageIndex + 1) % statusMessages.length;
-                  setStreamStatus(statusMessages[messageIndex]);
+                if (!docs.cover || !docs.cover.trim()) missing.push('Cover Letter');
+                if (!docs.narrative || !docs.narrative.trim()) missing.push('Personal Narrative');
+                if (!docs.checklist || !docs.checklist.trim()) missing.push('Evidence Checklist');
+                if (!docs.review || !docs.review.trim()) missing.push('Review Summary');
+                
+                if (missing.length > 0) {
+                  setIsStreaming(false);
+                  setStreamProgress(0);
+                  setError(`❌ Generation incomplete. Missing: ${missing.join(', ')}`);
+                  setShowErrorModal(true);
+                  trackGenerationError('incomplete_documents');
+                  console.error('❌ Incomplete documents:', missing);
+                  return;
                 }
-              }, 1000); // Update every second
-              
-            } else if (data.type === 'generating_other_docs') {
-              // Keep fake progress running - don't clear it yet
-              // Just update the status message
-              setStreamStatus('📄 Generating cover letter, checklist, and review summary...');
-              
-              // Bump progress to 95% if not there yet
-              setStreamProgress(prev => Math.max(prev, 95));
-              
-            } else if (data.type === 'complete') {
-              // Clear fake progress interval
-              if (fakeProgressInterval) {
-                clearInterval(fakeProgressInterval);
-                fakeProgressInterval = null;
+                
+                setIsStreaming(false);
+                setStreamProgress(100);
+                setStreamStatus('✅ All documents generated successfully!');
+                setGeneratedDocs(data.documents);
+                localStorage.setItem('dbeNarrativeGeneratedDocs', JSON.stringify(data.documents));
+                console.log('📄 All 4 documents validated and saved to localStorage');
+                trackGenerationComplete();
+                setTimeout(() => setStreamStatus(''), 2000);
+              } else if (data.type === 'error') {
+                throw new Error(data.message || 'Generation failed');
               }
-              
-              // All documents complete - jump to 100%
-              setIsStreaming(false);
-              setStreamProgress(100);
-              setStreamStatus('✅ All documents generated successfully!');
-              setGeneratedDocs(data.documents);
-              localStorage.setItem('dbeNarrativeGeneratedDocs', JSON.stringify(data.documents));
-              console.log('📄 Documents saved to localStorage');
-              trackGenerationComplete();
-              setTimeout(() => setStreamStatus(''), 2000);
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
             }
-          } catch (e) {
-            console.error('Error parsing SSE data:', e);
           }
         }
       }
+      
+      if (fakeProgressInterval) {
+        clearInterval(fakeProgressInterval);
+      }
+    } catch (err) {
+      console.error('Generation error:', err);
+      setError(err.message);
+      setShowErrorModal(true);
+      trackGenerationError(err.message);
+      setIsStreaming(false);
+      
+      if (fakeProgressInterval) {
+        clearInterval(fakeProgressInterval);
+      }
+    } finally {
+      setIsGenerating(false);
     }
-    
-    // Cleanup interval on completion
-    if (fakeProgressInterval) {
-      clearInterval(fakeProgressInterval);
-    }
-  } catch (err) {
-    console.error('Generation error:', err);
-    setError(err.message);
-    trackGenerationError(err.message);
-    setIsStreaming(false);
-    
-    // Cleanup interval on error
-    if (fakeProgressInterval) {
-      clearInterval(fakeProgressInterval);
-    }
-  } finally {
-    setIsGenerating(false);
-  }
-};
-  // ==========================================
-  // WORD DOCUMENT EXPORT
-  // ==========================================
+  };
 
   const createWordDocument = (content, filename) => {
     const paragraphs = content.split('\n').map(line => {
@@ -1536,7 +1556,80 @@ const generateDocuments = async () => {
         </div>
       )
     }
+
   ];
+
+  // ADDED: Error Modal for Generation Failures
+  if (showErrorModal || error) {
+    return (
+      <>
+        <Helmet>
+          <title>Generation Error - DBE Narrative Pro</title>
+        </Helmet>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+          <Navigation />
+          <div className="max-w-4xl mx-auto px-4 py-16">
+            <div className="bg-white rounded-2xl shadow-2xl p-12 text-center border-2 border-red-200">
+              <AlertCircle className="mx-auto mb-6 text-red-500" size={64} />
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                Document Generation Error
+              </h1>
+              <p className="text-gray-600 mb-6 text-lg">
+                {error || 'An error occurred while generating your documents.'}
+              </p>
+              
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-6 mb-8 text-left">
+                <p className="text-sm text-gray-700 mb-4">
+                  <strong>Don't worry - your form data is saved!</strong>
+                </p>
+                <ul className="text-sm text-gray-700 space-y-2">
+                  <li>• All your form information has been auto-saved</li>
+                  <li>• Simply try generating again</li>
+                  <li>• No need to re-enter anything</li>
+                  <li>• If this persists, contact support</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-4 justify-center flex-wrap">
+                <button
+                  onClick={() => {
+                    setError(null);
+                    setShowErrorModal(false);
+                    generateDocuments();
+                  }}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl inline-flex items-center gap-3 transition-all transform hover:scale-105 shadow-xl"
+                >
+                  Try Again
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setError(null);
+                    setShowErrorModal(false);
+                  }}
+                  className="bg-white hover:bg-gray-50 border-2 border-gray-300 text-gray-700 font-bold py-4 px-8 rounded-xl inline-flex items-center gap-2 transition-all"
+                >
+                  Back to Form
+                </button>
+                
+                <button
+                  onClick={() => {
+                    const subject = 'Generation Error - DBE Narrative Pro';
+                    const body = `I'm experiencing an error generating documents.\n\nError: ${error}\n\nBrowser: ${navigator.userAgent}\n\nPlease help!`;
+                    window.location.href = `mailto:support@dbenarrativepro.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                  }}
+                  className="bg-white hover:bg-gray-50 border-2 border-gray-300 text-gray-700 font-bold py-4 px-8 rounded-xl inline-flex items-center gap-2 transition-all"
+                >
+                  Contact Support
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
 
   const currentStep = steps[step];
   const StepIcon = currentStep.icon;
