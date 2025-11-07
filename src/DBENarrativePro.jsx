@@ -113,7 +113,7 @@ const DBENarrativePro = () => {
   // ============================================
   // TODO: REPLACE THESE WITH YOUR REAL VALUES
   // ============================================
-  const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9795b6fb-7f3c-42c0-b417-a8cc6f075aa1?embed=1";
+  const LEMON_SQUEEZY_CHECKOUT_URL = "https://dbenarrativepro.lemonsqueezy.com/buy/9ff0ccd8-ce4a-4cb7-8693-22ba083019ee?embed=1";
   const GA4_MEASUREMENT_ID = "G-TSQ6RSD1T4";
   // ============================================
 
