@@ -745,7 +745,7 @@ const HomePage = () => {
       {/* Footer - ENHANCED */}
       <div className="bg-gradient-to-br from-slate-900 via-gray-900 to-slate-900 text-gray-400 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+          <div className="grid md:grid-cols-4 gap-6 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl shadow-xl">
@@ -757,22 +757,15 @@ const HomePage = () => {
                 Professional DBE certification narratives powered by AI. Helping firms maintain certification under the new October 2025 requirements.
               </p>
             </div>
-            
-            <div>
-              <h4 className="text-white font-bold mb-4 text-base">Services</h4>
-              <ul className="space-y-3 text-sm">
-                <li className="cursor-pointer hover:text-white transition-colors hover:translate-x-1 transform duration-200" onClick={() => navigate('/narrative')}>
-                  Personal Narrative ($149)
-                </li>
-                <li className="cursor-pointer hover:text-white transition-colors hover:translate-x-1 transform duration-200" onClick={() => navigate('/narrative')}>
-                  Economic Disadvantage Statement
-                </li>
-                <li className="cursor-pointer hover:text-white transition-colors hover:translate-x-1 transform duration-200" onClick={() => navigate('/faq')}>
-                  FAQ
-                </li>
-              </ul>
-            </div>
-            
+
+<div>
+  <h4 className="text-white font-bold mb-4 text-base">Support</h4>
+  <ul className="space-y-3 text-sm">
+    <li className="cursor-pointer hover:text-white transition-colors hover:translate-x-1 transform duration-200" onClick={() => navigate('/contact')}>
+      Contact Us
+    </li>
+  </ul>
+</div>    
             <div>
               <h4 className="text-white font-bold mb-4 text-base">Resources</h4>
               <ul className="space-y-3 text-sm">
